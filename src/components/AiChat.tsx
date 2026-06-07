@@ -4,15 +4,17 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Flag } from "./Flag";
 import { TEAMS_BY_ID } from "@/lib/teams";
-import { MODELS, MODEL_KEYS, type ModelKey } from "@/lib/aiBudget";
+import type { ModelKey } from "@/lib/aiBudget";
 import type { DraftBracket } from "@/lib/bracketState";
 
-// Rough "how far does $50 go" guidance for the picker — the strategic squeeze.
-const TURN_ESTIMATE: Record<ModelKey, string> = {
-  opus: "~10 deep turns",
-  sonnet: "~30 turns",
-  haiku: "~90 turns",
+// Display-only model info. Kept here (not imported from aiBudget) so the token
+// tariff + Bedrock model ids stay server-side, out of the client bundle.
+const MODEL_UI: Record<ModelKey, { label: string; blurb: string; turns: string }> = {
+  opus: { label: "Opus", blurb: "Smartest, pricey — save it for the big calls", turns: "~10 deep turns" },
+  sonnet: { label: "Sonnet", blurb: "Balanced — sharp enough, won't drain you", turns: "~30 turns" },
+  haiku: { label: "Haiku", blurb: "Cheap & chatty — explore all you want", turns: "~90 turns" },
 };
+const MODEL_ORDER: ModelKey[] = ["opus", "sonnet", "haiku"];
 
 interface Bubble {
   role: "user" | "assistant";
@@ -362,7 +364,7 @@ function Header({ budget, model }: { budget: Budget; model: ModelKey | null }) {
           ← Bracket
         </Link>
         <span className="eyebrow truncate">
-          {model ? MODELS[model].label : "Pick a model"}
+          {model ? MODEL_UI[model].label : "Pick a model"}
         </span>
       </div>
       <div className="flex items-baseline justify-between mt-1">
@@ -399,17 +401,17 @@ function ModelPicker({
       </p>
       <p className="eyebrow mb-4">Pick your model — locked once you start</p>
       <div className="space-y-3">
-        {MODEL_KEYS.map((k) => (
+        {MODEL_ORDER.map((k) => (
           <button
             key={k}
             onClick={() => onPick(k)}
             className="w-full text-left card-surface rounded-xl p-4 border border-border active:scale-[0.99] transition"
           >
             <div className="flex items-center justify-between">
-              <span className="font-bold">{MODELS[k].label}</span>
-              <span className="eyebrow">{TURN_ESTIMATE[k]}</span>
+              <span className="font-bold">{MODEL_UI[k].label}</span>
+              <span className="eyebrow">{MODEL_UI[k].turns}</span>
             </div>
-            <p className="text-sm text-muted-foreground mt-1">{MODELS[k].blurb}</p>
+            <p className="text-sm text-muted-foreground mt-1">{MODEL_UI[k].blurb}</p>
           </button>
         ))}
       </div>

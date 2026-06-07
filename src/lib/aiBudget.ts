@@ -1,9 +1,9 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // AI Mode budget + tariff. Every player gets an AI budget equal to the buy-in
-// ($50). Talking to the AI costs "game dollars" priced by an INFLATED tariff
-// so that model choice is a real strategic tradeoff — explore cheap on Haiku,
-// spend big on Opus for the final call. The inflation also doubles as a hard cap
-// on real AWS Bedrock spend (which stays in the single-digit dollars overall).
+// ($50). Talking to the AI costs "game dollars" so that model choice is a real
+// strategic tradeoff — explore cheap on Haiku, spend big on Opus for the final
+// call. The tariff also doubles as a hard cap on real AWS Bedrock spend (which
+// stays in the single-digit dollars overall).
 //
 // Tuning: these are the only numbers to touch. Rates are game-dollars per 1K
 // tokens. Target with a $50 budget:  ~10 Opus turns · ~30 Sonnet · ~90 Haiku.
