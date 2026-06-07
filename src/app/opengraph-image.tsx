@@ -31,7 +31,7 @@ export default function OgImage() {
           Kitchen Table Bracket Pool
         </div>
         <div style={{ fontSize: 30, opacity: 0.85, marginTop: 36 }}>
-          48 teams · pick your bracket · ride your spirit team
+          48 teams · pick your bracket · claim your spirit team
         </div>
       </div>
     ),
