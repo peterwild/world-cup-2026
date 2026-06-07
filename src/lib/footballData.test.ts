@@ -60,3 +60,18 @@ test("reports unmapped names instead of guessing", () => {
   const { unmapped } = deriveResults([group("Mexico", "Madeupistan", 1, 0)]);
   assert.deepEqual(unmapped, ["Madeupistan"]);
 });
+
+test("TBD fixtures with null team names don't crash or get counted", () => {
+  // Pre-tournament, knockout matches have null teams.
+  const tbd: FdMatch = {
+    stage: "LAST_32",
+    group: null,
+    status: "SCHEDULED",
+    homeTeam: { name: null },
+    awayTeam: { name: null },
+    score: { winner: null, fullTime: { home: null, away: null } },
+  };
+  const { results, unmapped } = deriveResults([tbd]);
+  assert.deepEqual(unmapped, []); // nulls aren't "unmapped"
+  assert.equal(results.roundTeams.R32, undefined); // no teams recorded
+});

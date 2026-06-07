@@ -16,8 +16,9 @@ export interface FdMatch {
   stage: string;
   group: string | null;
   status: string; // SCHEDULED | IN_PLAY | PAUSED | FINISHED | ...
-  homeTeam: { name: string };
-  awayTeam: { name: string };
+  // Names are null for not-yet-determined teams (TBD knockout fixtures).
+  homeTeam: { name: string | null };
+  awayTeam: { name: string | null };
   score: { winner: string | null; fullTime: { home: number | null; away: number | null } };
 }
 
@@ -55,7 +56,8 @@ const BY_NAME: Record<string, string> = Object.fromEntries(
   TEAMS.map((t) => [t.name.toLowerCase(), t.id]),
 );
 
-export function nameToId(name: string): string | null {
+export function nameToId(name: string | null | undefined): string | null {
+  if (!name) return null; // TBD fixtures have null team names
   const n = name.trim().toLowerCase();
   return ALIASES[n] ?? BY_NAME[n] ?? null;
 }
@@ -70,9 +72,9 @@ const STAGE_TO_ROUND: Record<string, KnockoutRound> = {
 
 export function deriveResults(matches: FdMatch[]): { results: Results; unmapped: string[] } {
   const unmapped = new Set<string>();
-  const id = (name: string): string | null => {
+  const id = (name: string | null): string | null => {
     const x = nameToId(name);
-    if (!x) unmapped.add(name);
+    if (name && !x) unmapped.add(name); // record real names we couldn't map, not TBD nulls
     return x;
   };
 
@@ -121,10 +123,11 @@ export function deriveResults(matches: FdMatch[]): { results: Results; unmapped:
   for (const m of matches) {
     const round = STAGE_TO_ROUND[m.stage];
     if (!round) continue;
-    const set = (roundTeams[round] ??= []);
     for (const name of [m.homeTeam.name, m.awayTeam.name]) {
       const tid = id(name);
-      if (tid && !set.includes(tid)) set.push(tid);
+      if (!tid) continue; // skip TBD teams — don't create an empty round
+      const set = (roundTeams[round] ??= []);
+      if (!set.includes(tid)) set.push(tid);
     }
   }
 
