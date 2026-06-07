@@ -8,10 +8,11 @@ festive, with an AI "Oracle" research mode and a money leaderboard.
 **Brackets must lock before kickoff: 2026-06-11 15:00 ET (Mexico v South Africa).**
 
 ### ⚠️ Open before lock
-- [ ] **Verify the 48-team group draw** in `src/lib/teams.ts` against the official
-      FIFA bracket. Current data is DRAFT (single secondary source, NBC). Flip
-      `TEAMS_VERIFIED` to `true` once confirmed.
-- [ ] **Wire the score poller** once the tournament feed is live: get a
+- [x] **48-team group draw verified** 2026-06-07 against the football-data feed
+      (all 12 groups matched); `TEAMS_VERIFIED = true`.
+- [x] **Score poller live** — football-data WC feed confirmed in the free tier;
+      cron runs 3×/hour. Below kept for reference:
+- [ ] **(reference) Wire the score poller** once the tournament feed is live: get a
       football-data.org key, confirm WC 2026 is in its tier, set repo secrets
       (`FOOTBALL_DATA_KEY`, `SITE_URL`, `ADMIN_KEY`), and run the poll workflow
       with `--dry-run` to check team-name mapping (`unmapped` should be empty).

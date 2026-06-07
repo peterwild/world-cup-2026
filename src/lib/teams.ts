@@ -1,18 +1,15 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // 2026 FIFA World Cup — team + group seed data
 //
-// ⚠️  DRAFT — VERIFY BEFORE LOCK.
-// Group assignments below are transcribed from a single secondary source
-// (NBC Sports, June 2026) and have NOT yet been confirmed against the official
-// FIFA bracket. People are betting real money on these exact teams, so this
-// file must be cross-checked against fifa.com/worldcup before brackets lock
-// (kickoff: 2026-06-11 15:00 ET). See VERIFIED below.
+// ✅ VERIFIED 2026-06-07 against the official fixture feed (football-data.org
+// competition WC, all 104 matches) via `poll-scores.mjs --print-groups`. All 12
+// groups matched exactly. Re-verify only if the source draw is amended.
 //
 // `flag` is the flag-icons class suffix (ISO 3166-1 alpha-2, lowercase), with
 // the UK home nations as gb-eng / gb-sct / gb-wls. Render as <span class="fi fi-{flag}" />.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const TEAMS_VERIFIED = false; // flip to true once confirmed vs official FIFA bracket
+export const TEAMS_VERIFIED = true; // confirmed vs official feed 2026-06-07
 
 export type GroupId =
   | "A" | "B" | "C" | "D" | "E" | "F"
