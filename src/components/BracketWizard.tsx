@@ -335,8 +335,9 @@ function Intro({ onStart }: { onStart: () => void }) {
           World Cup 2026
         </h1>
         <p className="text-muted-foreground mt-3 max-w-sm">
-          Pick all 48 teams through the bracket, choose a spirit team, and ride it
-          to the pot. 100% of the buy-in pays out the leaderboard.
+          Pick all 48 teams through the bracket, choose a spirit team, and watch
+          your bracket update live as games are played. Buy-in pays out to the top
+          3: 60% / 30% / 10%.
         </p>
       </div>
       <button
