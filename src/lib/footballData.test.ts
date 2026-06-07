@@ -35,6 +35,15 @@ test("group standings order by points then goal diff", () => {
   assert.deepEqual(results.groupResults.A, { first: "mex", second: "cze" });
 });
 
+test("group not finalized until all its matches are played", () => {
+  const matches: FdMatch[] = [
+    group("Mexico", "Czechia", 2, 0), // finished
+    { ...group("Mexico", "South Korea", 0, 0), status: "SCHEDULED" }, // not played
+  ];
+  const { results } = deriveResults(matches);
+  assert.equal(results.groupResults.A, undefined);
+});
+
 test("knockout reaches + champion from FINAL", () => {
   const ko = (stage: string, home: string, away: string, h = 1, a = 0): FdMatch => ({
     stage,

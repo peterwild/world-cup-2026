@@ -41,6 +41,7 @@ const ALIASES: Record<string, string> = {
   "türkiye": "tur",
   "cabo verde": "cpv",
   "cape verde": "cpv",
+  "cape verde islands": "cpv",
   "congo dr": "cod",
   "dr congo": "cod",
   curacao: "cuw",
@@ -81,6 +82,7 @@ export function deriveResults(matches: FdMatch[]): { results: Results; unmapped:
   // ── Group standings (pts, then GD, then GF) ──
   const table: Record<string, { pts: number; gd: number; gf: number }> = {};
   const groupTeams: Record<string, Set<string>> = {};
+  const groupMatches: Record<string, { total: number; finished: number }> = {};
   for (const m of matches) {
     if (m.stage !== "GROUP_STAGE" || !m.group) continue;
     const g = m.group.replace("GROUP_", "");
@@ -89,9 +91,11 @@ export function deriveResults(matches: FdMatch[]): { results: Results; unmapped:
     if (!h || !a) continue;
     (groupTeams[g] ??= new Set()).add(h);
     groupTeams[g].add(a);
+    (groupMatches[g] ??= { total: 0, finished: 0 }).total++;
     table[h] ??= { pts: 0, gd: 0, gf: 0 };
     table[a] ??= { pts: 0, gd: 0, gf: 0 };
     if (m.status !== "FINISHED") continue;
+    groupMatches[g].finished++;
     const hg = m.score.fullTime.home ?? 0;
     const ag = m.score.fullTime.away ?? 0;
     table[h].gf += hg;
@@ -107,6 +111,10 @@ export function deriveResults(matches: FdMatch[]): { results: Results; unmapped:
   }
   const groupResults: Results["groupResults"] = {};
   for (const g of GROUP_IDS) {
+    // Only finalize a group once every one of its matches is played — otherwise
+    // a 0-0-0 table would emit arbitrary "qualifiers" before any game is decided.
+    const mc = groupMatches[g];
+    if (!mc || mc.total === 0 || mc.finished < mc.total) continue;
     const teams = [...(groupTeams[g] ?? [])];
     if (teams.length < 2) continue;
     teams.sort(
