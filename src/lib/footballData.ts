@@ -71,6 +71,32 @@ const STAGE_TO_ROUND: Record<string, KnockoutRound> = {
   FINAL: "FINAL",
 };
 
+/** Group → sorted team ids, read from the feed's group-stage fixtures. Used to
+ *  verify our DRAFT seed draw against the authoritative schedule. */
+export function groupsFromMatches(matches: FdMatch[]): {
+  groups: Record<string, string[]>;
+  unmapped: string[];
+} {
+  const unmapped = new Set<string>();
+  const sets: Record<string, Set<string>> = {};
+  for (const m of matches) {
+    if (m.stage !== "GROUP_STAGE" || !m.group) continue;
+    const g = m.group.replace("GROUP_", "");
+    for (const name of [m.homeTeam.name, m.awayTeam.name]) {
+      if (!name) continue;
+      const tid = nameToId(name);
+      if (!tid) {
+        unmapped.add(name);
+        continue;
+      }
+      (sets[g] ??= new Set()).add(tid);
+    }
+  }
+  const groups: Record<string, string[]> = {};
+  for (const g of Object.keys(sets)) groups[g] = [...sets[g]].sort();
+  return { groups, unmapped: [...unmapped] };
+}
+
 export function deriveResults(matches: FdMatch[]): { results: Results; unmapped: string[] } {
   const unmapped = new Set<string>();
   const id = (name: string | null): string | null => {

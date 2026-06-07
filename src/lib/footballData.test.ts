@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { deriveResults, nameToId, type FdMatch } from "./footballData.ts";
+import { deriveResults, groupsFromMatches, nameToId, type FdMatch } from "./footballData.ts";
 
 test("nameToId handles aliases and our own names", () => {
   assert.equal(nameToId("Korea Republic"), "kor");
@@ -33,6 +33,16 @@ test("group standings order by points then goal diff", () => {
   ];
   const { results } = deriveResults(matches);
   assert.deepEqual(results.groupResults.A, { first: "mex", second: "cze" });
+});
+
+test("groupsFromMatches reads the feed's group assignments", () => {
+  const matches: FdMatch[] = [
+    group("Mexico", "Czechia", 0, 0),
+    group("South Korea", "South Africa", 0, 0),
+  ];
+  const { groups, unmapped } = groupsFromMatches(matches);
+  assert.deepEqual(groups.A, ["cze", "kor", "mex", "rsa"]);
+  assert.deepEqual(unmapped, []);
 });
 
 test("group not finalized until all its matches are played", () => {

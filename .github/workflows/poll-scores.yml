@@ -1,15 +1,25 @@
 name: Poll World Cup scores
 
-# Pulls results from football-data.org and pushes them to the box. Runs often
-# during the tournament window; harmless (idempotent) outside it.
+# Pulls results from football-data.org (one API call/run) and pushes them to the
+# box. Idempotent and harmless outside the tournament window.
+#
+# Cron at :09/:29/:49 — three runs/hour at deliberately odd, off-:00 minutes.
+# GitHub drops/delays scheduled runs that pile up on round minutes (:00, :15…);
+# odd minutes are far more reliable, and running 3×/hour means a dropped run
+# self-heals ~20 min later. ~3 calls/hr keeps us deep inside both football-data's
+# 10/min limit and GitHub Actions' monthly minutes on the private repo.
 on:
   schedule:
-    # every 10 min. GitHub crons drift under load — off-:00 minute to dodge it.
-    - cron: "3,13,23,33,43,53 * * * *"
+    - cron: "9,29,49 * * * *"
   workflow_dispatch:
     inputs:
       dry_run:
         description: "Parse + print results, push nothing"
+        required: false
+        type: boolean
+        default: false
+      print_groups:
+        description: "Verify the seed draw: print feed groups vs teams.ts"
         required: false
         type: boolean
         default: false
@@ -31,4 +41,5 @@ jobs:
         run: |
           ARGS=""
           if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="--dry-run"; fi
+          if [ "${{ inputs.print_groups }}" = "true" ]; then ARGS="--print-groups"; fi
           node --import ./scripts/ts-ext-resolver.mjs scripts/poll-scores.mjs $ARGS
