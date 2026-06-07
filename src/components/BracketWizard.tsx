@@ -10,7 +10,13 @@ import {
   teamsInGroup,
   type GroupId,
 } from "@/lib/teams";
-import { ROUND_SIZE, type KnockoutRound } from "@/lib/tournament";
+import {
+  GROUP_ADVANCE_POINTS,
+  GROUP_WINNER_BONUS,
+  ROUND_POINTS,
+  ROUND_SIZE,
+  type KnockoutRound,
+} from "@/lib/tournament";
 import {
   bracketComplete,
   cascadeTrim,
@@ -306,11 +312,11 @@ function Header({
               : "Review";
   return (
     <header className="px-4 pt-5 pb-3 shrink-0 border-b border-border">
-      <div className="flex items-center justify-between pr-12">
-        <span className="eyebrow">
-          Step {progress} / {total} · {playerName}
+      <div className="flex items-center justify-between gap-3 pr-12">
+        <span className="eyebrow truncate min-w-0">
+          Step {progress} / {total} · {playerName.split(" ")[0]}
         </span>
-        <a href="/leaderboard" className="eyebrow underline whitespace-nowrap">
+        <a href="/leaderboard" className="eyebrow underline whitespace-nowrap shrink-0">
           🏆 Leaderboard
         </a>
       </div>
@@ -328,8 +334,9 @@ function Header({
 // ── Intro ────────────────────────────────────────────────────────────────────
 
 function Intro({ onStart }: { onStart: () => void }) {
+  const [showScoring, setShowScoring] = useState(false);
   return (
-    <div className="h-full flex flex-col items-center justify-center text-center gap-6 px-4">
+    <div className="min-h-full flex flex-col items-center justify-center text-center gap-6 px-4 py-10">
       <div className="text-5xl">🏆 ⚽️ 🍽️</div>
       <div>
         <p className="eyebrow">Kitchen Table pool</p>
@@ -349,13 +356,56 @@ function Intro({ onStart }: { onStart: () => void }) {
       >
         Start your bracket
       </button>
-      <button
-        className="text-sm text-muted-foreground flex items-center gap-2 px-4 py-2 rounded-full border border-border"
-        title="AI research mode — coming next"
-      >
-        <span className="text-base">✨</span> AI Mode
-        <span className="eyebrow">soon</span>
-      </button>
+      <div className="flex flex-col items-center gap-3">
+        <button
+          className="text-sm text-muted-foreground flex items-center gap-2 px-4 py-2 rounded-full border border-border"
+          title="AI research mode, coming next"
+        >
+          <span className="text-base">✨</span> AI Mode
+          <span className="eyebrow">soon</span>
+        </button>
+        <button
+          onClick={() => setShowScoring((s) => !s)}
+          className="text-sm text-muted-foreground underline"
+        >
+          How scoring works {showScoring ? "▲" : "▾"}
+        </button>
+      </div>
+      {showScoring && <ScoringExplainer />}
+    </div>
+  );
+}
+
+function ScoringExplainer() {
+  return (
+    <div className="card-surface rounded-xl border border-border p-4 text-left max-w-sm text-sm space-y-3">
+      <p className="text-muted-foreground">
+        You predict <b>which teams reach each stage</b>, not individual matchups.
+        Points add up as your teams go deeper.
+      </p>
+      <div>
+        <div className="eyebrow mb-1">Group stage</div>
+        <p className="text-muted-foreground">
+          +{GROUP_ADVANCE_POINTS} for each team you correctly pick to finish top 2
+          of its group, +{GROUP_WINNER_BONUS} bonus for the group winner.
+        </p>
+      </div>
+      <div>
+        <div className="eyebrow mb-1">Knockouts</div>
+        <p className="text-muted-foreground">
+          Points for every team that reaches a round, rising each round:
+        </p>
+        <div className="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-1 text-muted-foreground">
+          <span>Round of 16: {ROUND_POINTS.R16}</span>
+          <span>Quarterfinal: {ROUND_POINTS.QF}</span>
+          <span>Semifinal: {ROUND_POINTS.SF}</span>
+          <span>Final: {ROUND_POINTS.FINAL}</span>
+          <span>Champion: {ROUND_POINTS.CHAMPION}</span>
+        </div>
+      </div>
+      <p className="text-muted-foreground">
+        <b>Tiebreaker:</b> total goals in the final. <b>Spirit team:</b> just for fun.
+      </p>
     </div>
   );
 }
