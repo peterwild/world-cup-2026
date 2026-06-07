@@ -37,7 +37,7 @@ function seedDefaults(d: DatabaseSync) {
     [KV.groupPasscode]: process.env.GROUP_PASSCODE ?? "kitchentable",
     // 2026 opener: Mexico v South Africa, 3pm ET (EDT = -04:00).
     [KV.lockAt]: process.env.LOCK_AT ?? "2026-06-11T15:00:00-04:00",
-    [KV.buyInCents]: Number(process.env.BUY_IN_CENTS ?? 2000),
+    [KV.buyInCents]: Number(process.env.BUY_IN_CENTS ?? 5000),
   };
   for (const [k, v] of Object.entries(defaults)) put.run(k, JSON.stringify(v));
 }
