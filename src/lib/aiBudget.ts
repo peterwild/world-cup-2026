@@ -28,14 +28,14 @@ export const MODELS: Record<ModelKey, ModelConfig> = {
     // profiles list as ACTIVE but invoke with AccessDenied).
     id: "global.anthropic.claude-opus-4-6-v1",
     label: "Opus",
-    blurb: "Smartest, pricey — save it for the big calls",
+    blurb: "Sharpest reasoning — but you'll get fewer turns",
     inPer1k: 0.8,
     outPer1k: 3.2,
   },
   sonnet: {
     id: "global.anthropic.claude-sonnet-4-6",
     label: "Sonnet",
-    blurb: "Balanced — sharp enough, won't drain you",
+    blurb: "Balanced — won't eat your budget",
     inPer1k: 0.25,
     outPer1k: 1.0,
   },

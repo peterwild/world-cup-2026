@@ -10,8 +10,8 @@ import type { DraftBracket } from "@/lib/bracketState";
 // Display-only model info. Kept here (not imported from aiBudget) so the token
 // tariff + Bedrock model ids stay server-side, out of the client bundle.
 const MODEL_UI: Record<ModelKey, { label: string; blurb: string; turns: string }> = {
-  opus: { label: "Opus", blurb: "Smartest, pricey — save it for the big calls", turns: "~10 deep turns" },
-  sonnet: { label: "Sonnet", blurb: "Balanced — sharp enough, won't drain you", turns: "~30 turns" },
+  opus: { label: "Opus", blurb: "Sharpest reasoning — but you'll get fewer turns", turns: "~10 deep turns" },
+  sonnet: { label: "Sonnet", blurb: "Balanced — won't eat your budget", turns: "~30 turns" },
   haiku: { label: "Haiku", blurb: "Cheap & chatty — explore all you want", turns: "~90 turns" },
 };
 const MODEL_ORDER: ModelKey[] = ["opus", "sonnet", "haiku"];
@@ -355,11 +355,16 @@ export function AiChat() {
 // ── Header + budget meter ──────────────────────────────────────────────────────
 
 function Header({ budget, model }: { budget: Budget; model: ModelKey | null }) {
-  const frac = Math.max(0, Math.min(1, budget.remainingCents / budget.budgetCents));
-  const color = frac > 0.5 ? "var(--pitch)" : frac > 0.2 ? "var(--gold)" : "var(--destructive)";
+  // Usage meter counts UP: the bar fills and heats up as you spend.
+  const spent = Math.min(budget.spendCents, budget.budgetCents);
+  const frac = budget.budgetCents
+    ? Math.max(0, Math.min(1, budget.spendCents / budget.budgetCents))
+    : 0;
+  const color = frac < 0.5 ? "var(--pitch)" : frac < 0.8 ? "var(--gold)" : "var(--destructive)";
   return (
     <header className="px-4 pt-5 pb-3 shrink-0 border-b border-border">
-      <div className="flex items-center justify-between gap-3">
+      {/* pr-12 keeps the row clear of the fixed theme toggle in the top-right */}
+      <div className="flex items-center justify-between gap-3 pr-12">
         <Link href="/" className="eyebrow underline whitespace-nowrap">
           ← Bracket
         </Link>
@@ -372,7 +377,7 @@ function Header({ budget, model }: { budget: Budget; model: ModelKey | null }) {
           <span>✨</span> AI Mode
         </h1>
         <span className="text-sm font-semibold tabular-nums" style={{ color }}>
-          {fmt(budget.remainingCents)} <span className="text-muted-foreground font-normal">/ {fmt(budget.budgetCents)}</span>
+          {fmt(spent)} <span className="text-muted-foreground font-normal">/ {fmt(budget.budgetCents)} used</span>
         </span>
       </div>
       <div className="h-1.5 mt-2.5 rounded-full bg-muted overflow-hidden">
