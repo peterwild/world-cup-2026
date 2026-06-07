@@ -20,9 +20,9 @@ export default async function LeaderboardPage() {
 
   return (
     <div className="min-h-dvh max-w-xl mx-auto px-4 pb-12">
-      <header className="pt-5 pb-3 flex items-center justify-between">
+      <header className="pt-5 pb-3 flex items-center justify-between pr-12">
         <span className="eyebrow">{groupName} · Leaderboard</span>
-        <Link href="/" className="text-xs text-muted-foreground underline">
+        <Link href="/" className="text-xs text-muted-foreground underline whitespace-nowrap">
           ← bracket
         </Link>
       </header>

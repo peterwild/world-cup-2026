@@ -16,6 +16,7 @@ import {
   type Results,
   type ScoreBreakdown,
 } from "./scoring";
+import { bracketComplete } from "./bracketState";
 import { computePayouts } from "./tournament";
 
 export interface Standing {
@@ -39,7 +40,9 @@ export interface Leaderboard {
 }
 
 export function computeLeaderboard(): Leaderboard {
-  const entries = getAllEntries();
+  // You're only "in the pool" once your bracket is complete — creating an
+  // account isn't enough. Incomplete entries don't count toward the pot.
+  const entries = getAllEntries().filter((e) => bracketComplete(e.draft));
   const results = getResults();
   const buyInCents = getBuyInCents();
 

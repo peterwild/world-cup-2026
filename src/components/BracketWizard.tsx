@@ -240,7 +240,9 @@ export function BracketWizard({ player }: { player: Player }) {
         {step.kind === "review" && (
           <ReviewStep draft={draft} goto={(k) => jumpTo(k, setStepIdx)} />
         )}
-        {step.kind === "done" && <DoneStep draft={draft} />}
+        {step.kind === "done" && (
+          <DoneStep draft={draft} onEdit={() => jumpTo("review", setStepIdx)} />
+        )}
       </main>
 
       {chrome && (
@@ -304,11 +306,11 @@ function Header({
               : "Review";
   return (
     <header className="px-4 pt-5 pb-3 shrink-0 border-b border-border">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between pr-12">
         <span className="eyebrow">
           Step {progress} / {total} · {playerName}
         </span>
-        <a href="/leaderboard" className="eyebrow underline">
+        <a href="/leaderboard" className="eyebrow underline whitespace-nowrap">
           🏆 Leaderboard
         </a>
       </div>
@@ -328,7 +330,7 @@ function Header({
 function Intro({ onStart }: { onStart: () => void }) {
   return (
     <div className="h-full flex flex-col items-center justify-center text-center gap-6 px-4">
-      <div className="text-6xl">🏆⚽️</div>
+      <div className="text-5xl">🏆 ⚽️ 🍽️</div>
       <div>
         <p className="eyebrow">Kitchen Table pool</p>
         <h1 className="text-4xl font-extrabold tracking-tight mt-1">
@@ -430,27 +432,28 @@ function GroupCard({
         {teams.map((t) => {
           const rank = order.indexOf(t.id);
           const isImpliedLast = complete && rank === -1;
-          const picked =
-            rank === 0 ? "winner" : rank === 1 || rank === 2 ? "1" : undefined;
+          // 1st = winner (gold), 2nd = advances (green), 3rd = wildcard (indigo)
+          const state = rank === 0 ? "winner" : rank === 1 ? "second" : rank === 2 ? "third" : undefined;
+          const tone =
+            rank === 0
+              ? { background: "var(--gold-soft)", color: "var(--gold)" }
+              : rank === 1
+                ? { background: "var(--pitch-soft)", color: "var(--pitch)" }
+                : { background: "var(--wildcard-soft)", color: "var(--wildcard)" };
           return (
             <button
               key={t.id}
               className="team-row"
-              data-picked={picked}
+              data-picked={state}
               data-eliminated={isImpliedLast ? "1" : undefined}
               onClick={() => tap(t.id)}
             >
               <Flag code={t.flag} />
               <span className="font-medium text-sm">{t.name}</span>
               {rank >= 0 && (
-                <span
-                  className="pick-badge"
-                  style={{
-                    background: rank === 0 ? "var(--gold-soft)" : "var(--pitch-soft)",
-                    color: rank === 0 ? "var(--gold)" : "var(--pitch)",
-                  }}
-                >
+                <span className="pick-badge" style={tone}>
                   {ORDINAL[rank]}
+                  {rank === 2 ? " · wildcard?" : ""}
                 </span>
               )}
               {isImpliedLast && (
@@ -778,16 +781,16 @@ function TeamInline({ id, big }: { id: string; big?: boolean }) {
 
 // ── Done ─────────────────────────────────────────────────────────────────────
 
-function DoneStep({ draft }: { draft: DraftBracket }) {
+function DoneStep({ draft, onEdit }: { draft: DraftBracket; onEdit: () => void }) {
   const champion = draft.rounds.CHAMPION?.[0];
   const t = champion ? TEAMS_BY_ID[champion] : null;
   return (
     <div className="h-full flex flex-col items-center justify-center text-center gap-5 px-4">
       <div className="text-6xl">✅</div>
-      <h1 className="text-3xl font-extrabold">Bracket locked in</h1>
+      <h1 className="text-3xl font-extrabold">You&apos;re in the pool</h1>
       <p className="text-muted-foreground max-w-sm">
-        Saved on this device. Server submit + the leaderboard come next — for now
-        your picks are safe locally and editable until kickoff.
+        Your bracket is saved. You can keep editing it right up until kickoff on
+        June 11. After that it locks.
       </p>
       {t && (
         <div className="card-surface rounded-xl p-4 border border-border flex items-center gap-3">
@@ -798,13 +801,21 @@ function DoneStep({ draft }: { draft: DraftBracket }) {
           </div>
         </div>
       )}
-      <a
-        href="/leaderboard"
-        className="px-6 py-3 rounded-xl text-sm font-semibold active:scale-[0.98] transition"
-        style={{ background: "var(--pitch)", color: "white" }}
-      >
-        View the leaderboard →
-      </a>
+      <div className="flex flex-col gap-2 w-full max-w-xs">
+        <a
+          href="/leaderboard"
+          className="px-6 py-3 rounded-xl text-sm font-semibold active:scale-[0.98] transition"
+          style={{ background: "var(--pitch)", color: "white" }}
+        >
+          View the leaderboard →
+        </a>
+        <button
+          onClick={onEdit}
+          className="px-6 py-3 rounded-xl text-sm font-medium border border-border text-muted-foreground active:scale-[0.98] transition"
+        >
+          Edit my picks
+        </button>
+      </div>
     </div>
   );
 }

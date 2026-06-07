@@ -34,7 +34,7 @@ export function LoginForm({ onLogin }: { onLogin: (p: Player) => void }) {
 
   return (
     <div className="h-dvh flex flex-col items-center justify-center px-6 max-w-xl mx-auto">
-      <div className="text-6xl mb-5">🏆⚽️</div>
+      <div className="text-5xl mb-5">🏆 ⚽️ 🍽️</div>
       <p className="eyebrow">Kitchen Table pool</p>
       <h1 className="text-4xl font-extrabold tracking-tight mt-1 text-center">
         World Cup 2026
