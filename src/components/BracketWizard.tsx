@@ -95,7 +95,14 @@ export function BracketWizard({ player }: { player: Player }) {
       } catch {
         if (!cancelled) setDraftState(local);
       } finally {
-        if (!cancelled) setHydrated(true);
+        if (!cancelled) {
+          setHydrated(true);
+          // Deep-link from AI Mode's "Accept": jump straight to the review screen
+          // with the just-saved picks pre-filled.
+          if (new URLSearchParams(window.location.search).get("step") === "review") {
+            jumpTo("review", setStepIdx);
+          }
+        }
       }
     })();
     return () => {
@@ -357,13 +364,13 @@ function Intro({ onStart }: { onStart: () => void }) {
         Start your bracket
       </button>
       <div className="flex flex-col items-center gap-3">
-        <button
-          className="text-sm text-muted-foreground flex items-center gap-2 px-4 py-2 rounded-full border border-border"
-          title="AI research mode, coming next"
+        <a
+          href="/ai"
+          className="text-sm flex items-center gap-2 px-4 py-2 rounded-full border active:scale-[0.98] transition"
+          style={{ borderColor: "var(--pitch)", color: "var(--pitch)" }}
         >
-          <span className="text-base">✨</span> AI Mode
-          <span className="eyebrow">soon</span>
-        </button>
+          <span className="text-base">✨</span> Build it with AI
+        </a>
         <button
           onClick={() => setShowScoring((s) => !s)}
           className="text-sm text-muted-foreground underline"

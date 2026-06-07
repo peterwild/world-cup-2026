@@ -82,12 +82,16 @@ export function proposalToDraft(input: unknown): DraftBracket {
   const field = new Set([...groupAdvancers(d), ...d.bestThirds]);
   const inField = (ids: string[]) => ids.filter((id) => field.has(id));
 
-  // Bottom-up: champion forces the final, the final forces the SF, and so on.
-  const champion = p.champion && field.has(p.champion) ? [p.champion] : [];
-  const final = buildRound(inField(p.final), champion, ROUND_SIZE.FINAL);
+  // Bottom-up: the named champion forces the final, the final forces the SF, etc.
+  const namedChamp = p.champion && field.has(p.champion) ? [p.champion] : [];
+  const final = buildRound(inField(p.final), namedChamp, ROUND_SIZE.FINAL);
   const sf = buildRound(inField(p.sf), final, ROUND_SIZE.SF);
   const qf = buildRound(inField(p.qf), sf, ROUND_SIZE.QF);
   const r16 = buildRound(inField(p.r16), qf, ROUND_SIZE.R16);
+  // The champion must be one of the two finalists. If the model named none (weak
+  // models sometimes skip it), fall back to the top finalist — a finalist is
+  // always a plausible champion, and the player can change it in the wizard.
+  const champion = namedChamp.length ? namedChamp : final.slice(0, 1);
   d.rounds = { R16: r16, QF: qf, SF: sf, FINAL: final, CHAMPION: champion };
 
   d.spiritTeamId = p.spirit && isValidId(p.spirit) ? p.spirit : null;

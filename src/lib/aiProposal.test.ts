@@ -45,9 +45,20 @@ test("hallucinated team ids are dropped, not crashed on", () => {
   p.spirit = "narnia";
   p.bestThirds = [...p.bestThirds.slice(0, 7), "wakanda"]; // one bogus
   const d = proposalToDraft(p);
-  assert.equal(d.rounds.CHAMPION?.length, 0); // bogus champion dropped
+  // bogus champion replaced by the top finalist (never invents a non-field team)
+  assert.ok(!d.rounds.CHAMPION?.includes("atlantis"));
+  assert.ok(d.rounds.FINAL?.includes(d.rounds.CHAMPION![0]));
   assert.equal(d.spiritTeamId, null);
   assert.ok(!d.bestThirds.includes("wakanda"));
+});
+
+test("a missing champion falls back to the top finalist", () => {
+  // Mirrors a weak model that fills the bracket but omits the champion field.
+  const p = validProposal();
+  p.champion = undefined as unknown as string;
+  const d = proposalToDraft(p);
+  assert.equal(d.rounds.CHAMPION?.length, 1);
+  assert.equal(d.rounds.CHAMPION![0], d.rounds.FINAL![0]);
 });
 
 test("a team placed in the wrong group is rejected", () => {

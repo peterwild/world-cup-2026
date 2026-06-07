@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Bedrock Converse (streaming) client for AI Mode — the "Oracle". Grounds the
+// Bedrock Converse (streaming) client for AI Mode. Grounds the
 // model in the verified 48-team field + exact scoring rules, exposes a single
 // propose_bracket tool, and streams text deltas. A cache breakpoint on the
 // static system block keeps real AWS cost (and latency) down on every turn after
@@ -40,7 +40,7 @@ function teamRoster(): string {
   ).join("\n");
 }
 
-const SYSTEM_PROMPT = `You are the Oracle, the AI advisor for a friends-and-family World Cup 2026 bracket pool ($50 buy-in, winner-takes-most). You help a player build their bracket through conversation.
+const SYSTEM_PROMPT = `You are an AI advisor for a friends-and-family World Cup 2026 bracket pool ($50 buy-in, winner-takes-most). You help a player build their bracket through conversation.
 
 HOW THE POOL SCORES (so your advice is strategy-aware):
 - Players predict WHICH TEAMS REACH EACH ROUND, not individual matchups.
