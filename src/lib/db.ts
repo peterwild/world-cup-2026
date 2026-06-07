@@ -73,6 +73,18 @@ function migrate(d: DatabaseSync) {
       value TEXT NOT NULL
     );
 
+    -- AI Mode: one research session per player. Budget ($ tracked in cents, counts
+    -- UP toward the buy-in) is server-authoritative so a reload/new device can't
+    -- reset it. Model is chosen once per session; transcript persists for resume.
+    CREATE TABLE IF NOT EXISTS ai_session (
+      player_id    TEXT PRIMARY KEY REFERENCES player(id) ON DELETE CASCADE,
+      model        TEXT,                          -- chosen model key: opus|sonnet|haiku
+      spend_cents  INTEGER NOT NULL DEFAULT 0,    -- game-dollars spent so far (cents)
+      transcript   TEXT NOT NULL DEFAULT '[]',    -- JSON ConverseMessage[] for resume
+      proposal     TEXT,                          -- last propose_bracket payload (JSON)
+      updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     -- Raw fixtures pulled from football-data.org by the score poller.
     CREATE TABLE IF NOT EXISTS match (
       id          INTEGER PRIMARY KEY,           -- football-data match id

@@ -129,6 +129,83 @@ export function getBuyInCents(): number {
   return kvGet<number>(KV.buyInCents, 2000);
 }
 
+// ── AI Mode session ────────────────────────────────────────────────────────────
+// Budget is server-authoritative (keyed to player id) so a reload or new device
+// can't reset it. spend_cents counts UP toward the buy-in (the AI budget).
+
+export interface AiSession {
+  /** chosen model key (opus|sonnet|haiku), null until the player picks one */
+  model: string | null;
+  spendCents: number;
+  /** persisted Converse message history, for resuming mid-conversation */
+  transcript: unknown[];
+  /** last propose_bracket payload the model emitted, or null */
+  proposal: unknown | null;
+}
+
+interface AiSessionRow {
+  model: string | null;
+  spend_cents: number;
+  transcript: string;
+  proposal: string | null;
+}
+
+function ensureAiSession(playerId: string): void {
+  db().prepare("INSERT OR IGNORE INTO ai_session(player_id) VALUES(?)").run(playerId);
+}
+
+export function getAiSession(playerId: string): AiSession {
+  const r = db()
+    .prepare("SELECT model, spend_cents, transcript, proposal FROM ai_session WHERE player_id = ?")
+    .get(playerId) as AiSessionRow | undefined;
+  if (!r) return { model: null, spendCents: 0, transcript: [], proposal: null };
+  return {
+    model: r.model,
+    spendCents: r.spend_cents,
+    transcript: safeParse<unknown[]>(r.transcript, []),
+    proposal: r.proposal ? safeParse<unknown>(r.proposal, null) : null,
+  };
+}
+
+/** Pick the session model. The route enforces that this only happens before the
+ *  first message (model is locked once a conversation starts). */
+export function setAiModel(playerId: string, model: string): void {
+  ensureAiSession(playerId);
+  db()
+    .prepare("UPDATE ai_session SET model = ?, updated_at = datetime('now') WHERE player_id = ?")
+    .run(model, playerId);
+}
+
+/** Commit one completed turn: bill the tokens, persist the new transcript, and
+ *  (when the model proposed a bracket) the latest proposal. Pass `proposal`
+ *  undefined to leave the stored proposal untouched. */
+export function recordAiTurn(
+  playerId: string,
+  spendDeltaCents: number,
+  transcript: unknown[],
+  proposal?: unknown,
+): void {
+  ensureAiSession(playerId);
+  if (proposal !== undefined) {
+    db()
+      .prepare(
+        `UPDATE ai_session
+           SET spend_cents = spend_cents + ?, transcript = ?, proposal = ?,
+               updated_at = datetime('now')
+         WHERE player_id = ?`,
+      )
+      .run(spendDeltaCents, JSON.stringify(transcript), JSON.stringify(proposal), playerId);
+  } else {
+    db()
+      .prepare(
+        `UPDATE ai_session
+           SET spend_cents = spend_cents + ?, transcript = ?, updated_at = datetime('now')
+         WHERE player_id = ?`,
+      )
+      .run(spendDeltaCents, JSON.stringify(transcript), playerId);
+  }
+}
+
 export function getGroupName(): string {
   return kvGet<string>(KV.groupName, "Kitchen Table");
 }
