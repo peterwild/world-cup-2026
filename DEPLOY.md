@@ -23,7 +23,7 @@ terraform output static_ip
 
 ## 3. DNS 🔵
 At your DNS provider for `ptwconsultingllc.com`, add an **A record**:
-`cup` → the `static_ip` from step 2. Wait for it to resolve (`dig cup.ptwconsultingllc.com`).
+`worldcup` → the `static_ip` from step 2. Wait for it to resolve (`dig worldcup.ptwconsultingllc.com`).
 
 ## 4. CI deploy key 🔵
 ```bash
@@ -56,13 +56,13 @@ git clone git@github.com:ptw-consulting/world-cup-2026.git
 cd world-cup-2026
 cp deploy/.env.production.example .env.production
 nano .env.production        # set ADMIN_KEY (long random), confirm passcode
-./scripts/provision-box.sh git@github.com:ptw-consulting/world-cup-2026.git cup.ptwconsultingllc.com
+./scripts/provision-box.sh git@github.com:ptw-consulting/world-cup-2026.git worldcup.ptwconsultingllc.com
 ```
 That builds, starts pm2, configures nginx, and runs certbot. Visit
-**https://cup.ptwconsultingllc.com**.
+**https://worldcup.ptwconsultingllc.com**.
 
 ## 6. Score poller secrets 🔵
-Add repo secrets: `FOOTBALL_DATA_KEY`, `SITE_URL` (`https://cup.ptwconsultingllc.com`),
+Add repo secrets: `FOOTBALL_DATA_KEY`, `SITE_URL` (`https://worldcup.ptwconsultingllc.com`),
 `ADMIN_KEY` (same as the box). Then run the **Poll World Cup scores** workflow with
 `dry_run: true` — `unmapped` should be empty before you let it push.
 

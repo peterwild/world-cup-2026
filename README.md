@@ -28,7 +28,7 @@ cron hitting an authed `/api/` endpoint.
 - Deploy = push to `main` → GitHub Action SSHes the box, `git reset`, `npm ci`,
   build, `pm2 restart`.
 - nginx Basic Auth gates the site; path carve-outs for cron/API endpoints.
-- Subdomain: `cup.ptwconsultingllc.com` (TBD).
+- Subdomain: `worldcup.ptwconsultingllc.com` (TBD).
 
 ## Format & scoring (`src/lib/tournament.ts`)
 No literal bracket tree — players predict **which teams reach each round** (R32 →
