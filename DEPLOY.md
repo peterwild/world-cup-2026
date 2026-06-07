@@ -9,14 +9,9 @@ brew install terraform awscli
 aws configure         # your AWS access key + secret, region us-east-1
 ```
 
-## 1. Repo
-```bash
-cd ~/Documents/ptw-consulting/world-cup-2026
-git init && git add -A && git commit -m "World Cup 2026 bracket app"
-gh repo create ptw-consulting/world-cup-2026 --public --source=. --remote=origin --push
-```
-Public is simplest — no secrets live in the repo (the passcode is env-seeded). For
-a private repo, the box also needs a read deploy key to `git pull`.
+## 1. Repo ✅ done
+`github.com/ptw-consulting/world-cup-2026` (private), `main` pushed. Because it's
+private, the box authenticates to GitHub with a read-only **deploy key** — see step 5a.
 
 ## 2. Provision the box (Terraform) 🔵
 ```bash
@@ -40,14 +35,28 @@ Add GitHub repo **secrets** (Settings → Secrets → Actions):
 - `SSH_USERNAME` = `ubuntu`
 - `SSH_KEY` = contents of `~/.ssh/wc2026_deploy` (the private key)
 
-## 5. First deploy on the box 🔵
+## 5a. Box → GitHub read deploy key (private repo) 🔵
+On the box, make a key and register it as a **read-only deploy key** on the repo:
 ```bash
 ssh ubuntu@<static_ip>
-git clone https://github.com/ptw-consulting/world-cup-2026.git
+ssh-keygen -t ed25519 -f ~/.ssh/github -N "" -C box-deploy
+cat ~/.ssh/github.pub
+printf 'Host github.com\n  IdentityFile ~/.ssh/github\n  IdentitiesOnly yes\n' >> ~/.ssh/config
+```
+Add that public key at repo **Settings → Deploy keys → Add** (read-only). From your
+laptop you can do it in one line instead:
+```bash
+gh repo deploy-key add <(ssh ubuntu@<static_ip> 'cat ~/.ssh/github.pub') -R ptw-consulting/world-cup-2026 -t box-deploy
+```
+
+## 5b. First deploy on the box 🔵
+```bash
+# on the box:
+git clone git@github.com:ptw-consulting/world-cup-2026.git
 cd world-cup-2026
 cp deploy/.env.production.example .env.production
 nano .env.production        # set ADMIN_KEY (long random), confirm passcode
-./scripts/provision-box.sh https://github.com/ptw-consulting/world-cup-2026.git cup.ptwconsultingllc.com
+./scripts/provision-box.sh git@github.com:ptw-consulting/world-cup-2026.git cup.ptwconsultingllc.com
 ```
 That builds, starts pm2, configures nginx, and runs certbot. Visit
 **https://cup.ptwconsultingllc.com**.
