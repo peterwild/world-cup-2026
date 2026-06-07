@@ -7,9 +7,17 @@ const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "World Cup 2026 — Bracket Pool",
-  description: "Pick your bracket, ride your spirit team, win the pot.",
+  metadataBase: new URL("https://worldcup.ptwconsultingllc.com"),
+  title: "World Cup 2026 - Kitchen Table Bracket Pool",
+  description: "Pick all 48 teams, ride your spirit team, win the pot. The Kitchen Table pool.",
   robots: { index: false, follow: false },
+  openGraph: {
+    title: "World Cup 2026 - Kitchen Table Bracket Pool",
+    description: "Pick all 48 teams, ride your spirit team, win the pot.",
+    url: "https://worldcup.ptwconsultingllc.com",
+    siteName: "Kitchen Table Bracket Pool",
+    type: "website",
+  },
 };
 
 export const viewport: Viewport = {
