@@ -1,0 +1,196 @@
+@import "tailwindcss";
+@import "flag-icons/css/flag-icons.min.css";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+@custom-variant light (&:where([data-theme="light"], [data-theme="light"] *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-pitch: var(--pitch);
+  --color-gold: var(--gold);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+}
+
+/* Default = dark. The no-flash inline script in layout.tsx sets data-theme on
+   <html> before paint. */
+:root,
+[data-theme="dark"] {
+  --ink: 255 255 255;
+  --background: #050505;
+  --foreground: #ededed;
+  --card: rgb(var(--ink) / 0.03);
+  --card-foreground: #ededed;
+  --primary: #ededed;
+  --primary-foreground: #050505;
+  --secondary: rgb(var(--ink) / 0.06);
+  --secondary-foreground: #ededed;
+  --muted: rgb(var(--ink) / 0.06);
+  --muted-foreground: #888;
+  --accent: rgb(var(--ink) / 0.08);
+  --accent-foreground: #ededed;
+  --destructive: #ef4444;
+  --border: rgb(var(--ink) / 0.08);
+  --input: rgb(var(--ink) / 0.08);
+  --ring: rgb(var(--ink) / 0.2);
+  --radius: 0.75rem;
+  --selection-bg: rgba(34, 197, 94, 0.4);
+  --selection-fg: #ffffff;
+
+  /* Festive World Cup accents — flags supply the rest of the color. */
+  --pitch: #16a34a;        /* grass green — advance / selected */
+  --pitch-soft: rgba(34, 197, 94, 0.14);
+  --gold: #fbbf24;         /* trophy / champion */
+  --gold-soft: rgba(251, 191, 36, 0.14);
+}
+
+[data-theme="light"] {
+  --ink: 0 0 0;
+  --background: #fafafa;
+  --foreground: #0a0a0a;
+  --card: #ffffff;
+  --card-foreground: #0a0a0a;
+  --primary: #0a0a0a;
+  --primary-foreground: #fafafa;
+  --secondary: rgb(var(--ink) / 0.04);
+  --secondary-foreground: #0a0a0a;
+  --muted: rgb(var(--ink) / 0.05);
+  --muted-foreground: #6b7280;
+  --accent: rgb(var(--ink) / 0.06);
+  --accent-foreground: #0a0a0a;
+  --destructive: #dc2626;
+  --border: rgb(var(--ink) / 0.10);
+  --input: rgb(var(--ink) / 0.10);
+  --ring: rgb(var(--ink) / 0.2);
+  --selection-bg: rgba(22, 163, 74, 0.22);
+  --selection-fg: #0a0a0a;
+
+  --pitch: #15803d;
+  --pitch-soft: rgba(22, 163, 74, 0.10);
+  --gold: #d97706;
+  --gold-soft: rgba(217, 119, 6, 0.12);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    min-height: 100dvh;
+    /* avoid rubber-band white flash on iOS during the bracket wizard */
+    overscroll-behavior-y: none;
+  }
+}
+
+::selection {
+  background: var(--selection-bg);
+  color: var(--selection-fg);
+}
+
+/* ── Surfaces ──────────────────────────────────────────────────────────────── */
+.card-surface {
+  background-color: var(--card);
+}
+[data-theme="light"] .card-surface {
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 4px 12px rgba(0, 0, 0, 0.04);
+}
+
+/* Eyebrow — uppercase mono label above headings (PTW house style). */
+.eyebrow {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: rgb(var(--ink) / 0.35);
+}
+
+/* ── Flags ─────────────────────────────────────────────────────────────────── */
+/* flag-icons renders a 4:3 span. We round + frame it so flags read as chips. */
+.flag {
+  display: inline-block;
+  width: 1.6rem;
+  height: 1.2rem;
+  border-radius: 3px;
+  background-size: cover;
+  box-shadow: 0 0 0 1px rgb(var(--ink) / 0.12) inset;
+  flex: none;
+}
+.flag-lg {
+  width: 2.2rem;
+  height: 1.65rem;
+  border-radius: 4px;
+}
+
+/* ── Team row (tap-to-advance) ─────────────────────────────────────────────── */
+.team-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.7rem 0.85rem;
+  border-radius: var(--radius-md);
+  background: var(--card);
+  border: 1px solid var(--border);
+  text-align: left;
+  transition: border-color 0.12s ease, background-color 0.12s ease, transform 0.06s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.team-row:active {
+  transform: scale(0.99);
+}
+.team-row[data-picked="1"] {
+  border-color: var(--pitch);
+  background: var(--pitch-soft);
+}
+.team-row[data-picked="winner"] {
+  border-color: var(--gold);
+  background: var(--gold-soft);
+}
+.team-row[data-eliminated="1"] {
+  opacity: 0.4;
+}
+
+/* Pick badge (1st / 2nd / advance check). */
+.pick-badge {
+  margin-left: auto;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+}
+
+/* Pinned wizard footer (flex-none in the app shell) — safe-area aware for the
+   iOS home indicator. */
+.wizard-footer {
+  padding: 0.85rem 1rem calc(0.85rem + env(safe-area-inset-bottom));
+  background: var(--background);
+  border-top: 1px solid var(--border);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .team-row { transition: none; }
+}
