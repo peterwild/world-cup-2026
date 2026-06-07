@@ -473,7 +473,7 @@ function ChatBubble({ bubble, streaming }: { bubble: Bubble; streaming: boolean 
           {streaming && bubble.text && <span className="opacity-50">▍</span>}
         </div>
         {bubble.costCents != null && (
-          <span className="eyebrow px-1">−{fmt(bubble.costCents)}</span>
+          <span className="eyebrow px-1">+{fmt(bubble.costCents)}</span>
         )}
       </div>
     </div>
