@@ -5,7 +5,7 @@ name: Poll World Cup scores
 on:
   schedule:
     # every 10 min. GitHub crons drift under load — off-:00 minute to dodge it.
-    - cron: "3,13,23,33,43,53 * * *"
+    - cron: "3,13,23,33,43,53 * * * *"
   workflow_dispatch:
     inputs:
       dry_run:
