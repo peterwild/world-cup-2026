@@ -386,7 +386,7 @@ function Header({ budget, model }: { budget: Budget; model: ModelKey | null }) {
       {/* pr-12 keeps the row clear of the fixed theme toggle in the top-right */}
       <div className="flex items-center justify-between gap-3 pr-12">
         <Link href="/" className="eyebrow underline whitespace-nowrap">
-          ← Bracket
+          ⌂ Home
         </Link>
         <span className="eyebrow truncate">
           {model ? MODEL_UI[model].label : "Pick a model"}

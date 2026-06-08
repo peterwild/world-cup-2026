@@ -7,15 +7,18 @@
 
 import React from "react";
 
-const INLINE = /(`[^`]+`)|(\*\*[^*]+\*\*)|(\*[^*\n]+\*)|(_[^_\n]+_)/g;
+// Bold/italic recurse through parseInline, so each call needs its OWN regex —
+// a shared /g/ regex's lastIndex would be reset by the inner call mid-loop,
+// restarting the outer scan from 0 forever (infinite loop → tab crash).
+const INLINE_SRC = "(`[^`]+`)|(\\*\\*[^*]+\\*\\*)|(\\*[^*\\n]+\\*)|(_[^_\\n]+_)";
 
 function parseInline(text: string, keyBase: string): React.ReactNode[] {
+  const inline = new RegExp(INLINE_SRC, "g");
   const out: React.ReactNode[] = [];
   let last = 0;
   let m: RegExpExecArray | null;
-  INLINE.lastIndex = 0;
   let k = 0;
-  while ((m = INLINE.exec(text)) !== null) {
+  while ((m = inline.exec(text)) !== null) {
     if (m.index > last) out.push(text.slice(last, m.index));
     const tok = m[0];
     const key = `${keyBase}-${k++}`;

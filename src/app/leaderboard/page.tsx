@@ -34,7 +34,7 @@ export default async function LeaderboardPage() {
             my picks
           </Link>
           <Link href="/" className="text-xs text-muted-foreground underline whitespace-nowrap">
-            ← bracket
+            ⌂ Home
           </Link>
         </div>
       </header>
