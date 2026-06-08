@@ -131,7 +131,7 @@ export default async function LeaderboardPage() {
         )}
         {hasAiAssisted && (
           <p className="text-xs text-muted-foreground text-center pb-1">
-            ✨ = built with AI
+            ✨ = AI Assisted
           </p>
         )}
         {board.standings.map((s) => {
