@@ -6,6 +6,7 @@ import { isLocked } from "@/lib/db";
 import { bracketComplete } from "@/lib/bracketState";
 import { GROUP_IDS, TEAMS_BY_ID, teamsInGroup } from "@/lib/teams";
 import { Flag } from "@/components/Flag";
+import { TopNav } from "@/components/TopNav";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,22 +37,17 @@ export default async function PicksPage() {
 
   return (
     <div className="min-h-dvh max-w-xl mx-auto px-4 pb-12">
-      <header className="pt-5 pb-3 flex items-center justify-between pr-12">
-        <span className="eyebrow">{player.name.split(" ")[0]} · My picks</span>
-        <div className="flex items-center gap-3">
-          <Link href="/" className="eyebrow underline whitespace-nowrap">
-            ⌂ Home
-          </Link>
-          <Link href="/leaderboard" className="eyebrow underline whitespace-nowrap">
-            🏆 Leaderboard
-          </Link>
-          {!locked && (
+      <TopNav
+        current="picks"
+        context={`${player.name.split(" ")[0]} · My picks`}
+        action={
+          !locked ? (
             <Link href="/?step=review" className="eyebrow underline whitespace-nowrap">
               ✏️ Edit
             </Link>
-          )}
-        </div>
-      </header>
+          ) : null
+        }
+      />
 
       <div
         className="rounded-xl px-4 py-2.5 text-xs text-center"

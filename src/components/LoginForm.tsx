@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Player } from "@/lib/repo";
+import { PoolTeaser } from "./PoolTeaser";
 
 export function LoginForm({ onLogin }: { onLogin: (p: Player) => void }) {
   const [name, setName] = useState("");
@@ -42,6 +43,8 @@ export function LoginForm({ onLogin }: { onLogin: (p: Player) => void }) {
       <p className="text-muted-foreground mt-3 mb-8 text-center max-w-sm">
         Sign in with your name and the group passcode to build your bracket.
       </p>
+
+      <PoolTeaser className="mb-8" />
 
       <form onSubmit={submit} className="w-full max-w-sm space-y-3">
         <input

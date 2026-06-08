@@ -383,20 +383,31 @@ function Header({ budget, model }: { budget: Budget; model: ModelKey | null }) {
   const color = frac < 0.5 ? "var(--pitch)" : frac < 0.8 ? "var(--gold)" : "var(--destructive)";
   return (
     <header className="px-4 pt-5 pb-3 shrink-0 border-b border-border">
-      {/* pr-12 keeps the row clear of the fixed theme toggle in the top-right */}
-      <div className="flex items-center justify-between gap-3 pr-12">
-        <Link href="/" className="eyebrow underline whitespace-nowrap">
+      {/* pr-14 keeps the nav clear of the fixed theme toggle in the top-right.
+          Same Home-left / cluster-right order as the rest of the site. */}
+      <div className="flex items-center justify-between gap-3 pr-14">
+        <Link href="/" className="eyebrow underline whitespace-nowrap shrink-0">
           ⌂ Home
         </Link>
-        <span className="eyebrow truncate">
-          {model ? MODEL_UI[model].label : "Pick a model"}
-        </span>
+        <nav className="flex items-center gap-3 shrink-0">
+          <Link href="/picks" className="eyebrow underline whitespace-nowrap">
+            My picks
+          </Link>
+          <Link href="/leaderboard" className="eyebrow underline whitespace-nowrap">
+            🏆 Leaderboard
+          </Link>
+        </nav>
       </div>
-      <div className="flex items-baseline justify-between mt-1">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <span>✨</span> AI Mode
-        </h1>
-        <span className="text-sm font-semibold tabular-nums" style={{ color }}>
+      <div className="flex items-baseline justify-between mt-1 gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <span>✨</span> AI Mode
+          </h1>
+          <span className="eyebrow truncate block">
+            {model ? MODEL_UI[model].label : "Pick a model"}
+          </span>
+        </div>
+        <span className="text-sm font-semibold tabular-nums shrink-0" style={{ color }}>
           {fmt(spent)} <span className="text-muted-foreground font-normal">/ {fmt(budget.budgetCents)} used</span>
         </span>
       </div>

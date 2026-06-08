@@ -1,11 +1,11 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { getSessionPlayerId } from "@/lib/session";
 import { getGroupName } from "@/lib/repo";
 import { computeLeaderboard, formatUsd } from "@/lib/standings";
 import { PAYOUT_SPLIT, computePayouts } from "@/lib/tournament";
 import { TEAMS_BY_ID } from "@/lib/teams";
 import { Flag } from "@/components/Flag";
+import { TopNav } from "@/components/TopNav";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,17 +27,7 @@ export default async function LeaderboardPage() {
 
   return (
     <div className="min-h-dvh max-w-xl mx-auto px-4 pb-12">
-      <header className="pt-5 pb-3 flex items-center justify-between pr-12">
-        <span className="eyebrow">{groupName} · Leaderboard</span>
-        <div className="flex items-center gap-3">
-          <Link href="/picks" className="text-xs text-muted-foreground underline whitespace-nowrap">
-            my picks
-          </Link>
-          <Link href="/" className="text-xs text-muted-foreground underline whitespace-nowrap">
-            ⌂ Home
-          </Link>
-        </div>
-      </header>
+      <TopNav current="leaderboard" context={`${groupName} · Leaderboard`} />
 
       {/* Pot summary */}
       <section className="card-surface rounded-xl p-4 border border-border">
@@ -53,7 +43,6 @@ export default async function LeaderboardPage() {
               {board.entrants} {board.entrants === 1 ? "entry" : "entries"}
             </div>
             <div>{formatUsd(board.buyInCents)} buy-in</div>
-            <div>{board.paidCount} paid</div>
           </div>
         </div>
         <div className="mt-3 pt-3 border-t border-border">

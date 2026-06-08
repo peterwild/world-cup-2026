@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Player } from "@/lib/repo";
 import { Flag } from "./Flag";
+import { PoolTeaser } from "./PoolTeaser";
 import {
   GROUP_IDS,
   TEAMS,
@@ -322,7 +323,7 @@ function Header({
               : "Review";
   return (
     <header className="px-4 pt-5 pb-3 shrink-0 border-b border-border">
-      <div className="flex items-center justify-between gap-3 pr-12">
+      <div className="flex items-center justify-between gap-3 pr-14">
         <button onClick={onHome} className="eyebrow underline whitespace-nowrap shrink-0">
           ⌂ Home
         </button>
@@ -362,6 +363,7 @@ function Intro({ onStart }: { onStart: () => void }) {
           3: 60% / 30% / 10%.
         </p>
       </div>
+      <PoolTeaser />
       <button
         onClick={onStart}
         className="px-7 py-3.5 rounded-xl text-base font-semibold active:scale-[0.98] transition"
