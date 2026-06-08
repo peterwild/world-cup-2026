@@ -383,7 +383,7 @@ function Intro({ onStart }: { onStart: () => void }) {
           onClick={() => setShowScoring((s) => !s)}
           className="text-sm text-muted-foreground underline"
         >
-          How scoring works {showScoring ? "▲" : "▾"}
+          How scoring works {showScoring ? "▴" : "▾"}
         </button>
       </div>
       {showScoring && <ScoringExplainer />}
