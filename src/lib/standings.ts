@@ -41,9 +41,13 @@ export interface Leaderboard {
 }
 
 export function computeLeaderboard(): Leaderboard {
-  // You're only "in the pool" once your bracket is complete — creating an
-  // account isn't enough. Incomplete entries don't count toward the pot.
-  const entries = getAllEntries().filter((e) => bracketComplete(e.draft));
+  // You're "in the pool" once you've committed a complete bracket — and you
+  // STAY in even if a later edit cascades it back to incomplete (submitted_at is
+  // stamped + sticky on any complete save). Currently-complete is kept too, so
+  // brackets completed before this became sticky aren't dropped. [pot-membership]
+  const entries = getAllEntries().filter(
+    (e) => e.submittedAt !== null || bracketComplete(e.draft),
+  );
   const results = getResults();
   const buyInCents = getBuyInCents();
 

@@ -4,7 +4,7 @@
 
 import { randomUUID } from "node:crypto";
 import { db, kvGet, kvSet, KV } from "./db";
-import { emptyDraft, type DraftBracket } from "./bracketState";
+import { emptyDraft, bracketComplete, type DraftBracket } from "./bracketState";
 import { emptyResults, type Results } from "./scoring";
 
 export interface Player {
@@ -106,12 +106,17 @@ export function saveDraft(playerId: string, draft: DraftBracket, submit: boolean
     bestThirds: draft.bestThirds,
   });
   const roundTeams = JSON.stringify(draft.rounds);
+  // Stamp submitted_at the first time a bracket is complete — on explicit
+  // "Lock it in" OR a plain autosave that happens to be complete. COALESCE keeps
+  // it sticky, so a later edit that cascades a bracket back to incomplete (and
+  // autosaves that) never drops the player out of the pot. [pot-membership]
+  const stampSubmitted = submit || bracketComplete(draft);
   db()
     .prepare(
       `UPDATE bracket
          SET group_picks = ?, round_teams = ?, spirit_team_id = ?,
              final_goals_tiebreaker = ?, updated_at = datetime('now')
-             ${submit ? ", submitted_at = COALESCE(submitted_at, datetime('now'))" : ""}
+             ${stampSubmitted ? ", submitted_at = COALESCE(submitted_at, datetime('now'))" : ""}
        WHERE player_id = ?`,
     )
     .run(groupPicks, roundTeams, draft.spiritTeamId, draft.finalGoals, playerId);
