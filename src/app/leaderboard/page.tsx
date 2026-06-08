@@ -109,6 +109,11 @@ export default async function LeaderboardPage() {
             No brackets yet.
           </p>
         )}
+        {!locked && board.standings.length > 0 && (
+          <p className="text-xs text-muted-foreground text-center pb-1">
+            🔒 After kickoff, tap anyone to see their full bracket.
+          </p>
+        )}
         {board.standings.map((s) => {
           const isMe = s.player.id === meId;
           const showPayout = board.hasResults && s.payoutCents > 0;
@@ -149,12 +154,11 @@ export default async function LeaderboardPage() {
                   <div className="eyebrow">pts</div>
                 )}
               </div>
-              {/* Post-lock, the whole row links to that player's bracket */}
-              {locked && (
-                <span className="text-muted-foreground shrink-0" aria-hidden>
-                  ›
-                </span>
-              )}
+              {/* Post-lock the row links to that player's bracket (›); before
+                  lock we tease it with a 🔒 so people know to come back. */}
+              <span className="text-muted-foreground shrink-0" aria-hidden>
+                {locked ? "›" : "🔒"}
+              </span>
             </>
           );
           return locked ? (
