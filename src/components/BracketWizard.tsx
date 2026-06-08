@@ -364,7 +364,7 @@ function Intro({ onStart }: { onStart: () => void }) {
           3: 60% / 30% / 10%.
         </p>
       </div>
-      <PoolTeaser />
+      <PoolTeaser showSplit={false} />
       <button
         onClick={onStart}
         className="px-7 py-3.5 rounded-xl text-base font-semibold active:scale-[0.98] transition"

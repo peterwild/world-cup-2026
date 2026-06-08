@@ -23,7 +23,7 @@ export default async function LeaderboardPage() {
   const payouts = computePayouts(board.potCents);
   const placeLabels = ["1st", "2nd", "3rd"];
   const placeColors = [
-    { soft: "var(--gold-soft)", line: "var(--gold)" },
+    { soft: "var(--podium-gold-soft)", line: "var(--podium-gold)" },
     { soft: "var(--silver-soft)", line: "var(--silver)" },
     { soft: "var(--bronze-soft)", line: "var(--bronze)" },
   ];
@@ -49,9 +49,7 @@ export default async function LeaderboardPage() {
           </div>
         </div>
         <div className="mt-3 pt-3 border-t border-border">
-          <div className="eyebrow mb-2">
-            {board.hasResults ? "Current payouts" : "Projected payouts"}
-          </div>
+          <div className="eyebrow mb-2">Current payouts</div>
           <div className="grid grid-cols-3 gap-2">
             {payouts.map((cents, i) => {
               const c = placeColors[i] ?? placeColors[0];

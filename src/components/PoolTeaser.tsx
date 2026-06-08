@@ -16,7 +16,15 @@ function usd(cents: number): string {
 // real lever for a friend pool (social proof), so we lead with it once anyone's
 // in. Hidden entirely until the first complete bracket — a "$0 pot · 0 in" strip
 // deters rather than entices (cold-start optics).
-export function PoolTeaser({ className = "" }: { className?: string }) {
+export function PoolTeaser({
+  className = "",
+  showSplit = true,
+}: {
+  className?: string;
+  // The logged-in Intro already states the 60/30/10 split in its description,
+  // so it drops the redundant suffix; the login screen keeps it.
+  showSplit?: boolean;
+}) {
   const [pool, setPool] = useState<Pool | null>(null);
 
   useEffect(() => {
@@ -34,7 +42,9 @@ export function PoolTeaser({ className = "" }: { className?: string }) {
       <span className="font-semibold text-foreground tabular-nums">
         {usd(pool.potCents)}
       </span>
-      <span>pot · {pool.entrants} in · top 3 paid 60/30/10</span>
+      <span>
+        pot · {pool.entrants} in{showSplit ? " · top 3 paid 60/30/10" : ""}
+      </span>
     </div>
   );
 }

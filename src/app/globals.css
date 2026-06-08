@@ -59,8 +59,10 @@
   /* Festive World Cup accents — flags supply the rest of the color. */
   --pitch: #16a34a;        /* grass green — advance / selected */
   --pitch-soft: rgba(34, 197, 94, 0.14);
-  --gold: #fbbf24;         /* trophy / champion / group winner — 1st payout */
+  --gold: #fbbf24;         /* trophy / champion / group winner */
   --gold-soft: rgba(251, 191, 36, 0.14);
+  --podium-gold: #facc15;  /* yellower gold — 1st-place payout card only */
+  --podium-gold-soft: rgba(250, 204, 21, 0.16);
   --silver: #cbd5e1;       /* 2nd payout */
   --silver-soft: rgba(203, 213, 225, 0.16);
   --bronze: #d68a52;       /* 3rd payout */
@@ -94,6 +96,8 @@
   --pitch-soft: rgba(22, 163, 74, 0.10);
   --gold: #d97706;
   --gold-soft: rgba(217, 119, 6, 0.12);
+  --podium-gold: #eab308;  /* yellower gold — 1st-place payout card only */
+  --podium-gold-soft: rgba(234, 179, 8, 0.14);
   --silver: #64748b;
   --silver-soft: rgba(100, 116, 139, 0.12);
   --bronze: #b45309;
