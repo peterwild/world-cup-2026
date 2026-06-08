@@ -2,12 +2,13 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getSessionPlayerId } from "@/lib/session";
 import { getGroupName } from "@/lib/repo";
-import { isLocked } from "@/lib/db";
+import { isLocked, kvGet, KV } from "@/lib/db";
 import { computeLeaderboard, formatUsd } from "@/lib/standings";
 import { PAYOUT_SPLIT, computePayouts } from "@/lib/tournament";
 import { TEAMS_BY_ID } from "@/lib/teams";
 import { Flag } from "@/components/Flag";
 import { TopNav } from "@/components/TopNav";
+import { Countdown } from "@/components/Countdown";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,6 +20,8 @@ export default async function LeaderboardPage() {
   const board = computeLeaderboard();
   const groupName = getGroupName();
   const locked = isLocked();
+  const lockAt = kvGet<string | null>(KV.lockAt, null);
+  const hasAiAssisted = board.standings.some((s) => s.aiAssisted);
   const champion = board.championId ? TEAMS_BY_ID[board.championId] : null;
   const payouts = computePayouts(board.potCents);
   const placeLabels = ["1st", "2nd", "3rd"];
@@ -110,8 +113,25 @@ export default async function LeaderboardPage() {
           </p>
         )}
         {!locked && board.standings.length > 0 && (
+          <div className="text-center pb-1 space-y-0.5">
+            {lockAt && (
+              <p className="text-xs font-medium">
+                🔒 Brackets unlock in{" "}
+                <span style={{ color: "var(--pitch)" }}>
+                  <Countdown target={lockAt} />
+                </span>
+              </p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              {lockAt
+                ? "Then tap anyone to see their full bracket."
+                : "🔒 After kickoff, tap anyone to see their full bracket."}
+            </p>
+          </div>
+        )}
+        {hasAiAssisted && (
           <p className="text-xs text-muted-foreground text-center pb-1">
-            🔒 After kickoff, tap anyone to see their full bracket.
+            ✨ = built with AI
           </p>
         )}
         {board.standings.map((s) => {
