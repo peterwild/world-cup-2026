@@ -22,6 +22,8 @@ export default async function LeaderboardPage() {
   const locked = isLocked();
   const lockAt = kvGet<string | null>(KV.lockAt, null);
   const hasAiAssisted = board.standings.some((s) => s.aiAssisted);
+  const myStanding = board.standings.find((s) => s.player.id === meId);
+  const myIncomplete = !locked && !!myStanding && !myStanding.complete;
   const champion = board.championId ? TEAMS_BY_ID[board.championId] : null;
   const payouts = computePayouts(board.potCents);
   const placeLabels = ["1st", "2nd", "3rd"];
@@ -107,6 +109,15 @@ export default async function LeaderboardPage() {
 
       {/* Standings */}
       <div className="mt-4 space-y-2">
+        {myIncomplete && (
+          <Link
+            href="/?step=review"
+            className="block rounded-xl px-4 py-2.5 text-xs text-center font-medium active:scale-[0.99] transition"
+            style={{ background: "rgba(239, 68, 68, 0.12)", color: "var(--destructive)" }}
+          >
+            ⚠ Your bracket is incomplete — tap to finish before kickoff, or it won&apos;t score.
+          </Link>
+        )}
         {board.standings.length === 0 && (
           <p className="text-sm text-muted-foreground text-center py-8">
             No brackets yet.

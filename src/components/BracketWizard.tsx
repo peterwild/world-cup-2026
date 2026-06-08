@@ -73,7 +73,19 @@ export function BracketWizard({ player }: { player: Player }) {
   const [stepIdx, setStepIdx] = useState(0);
   const [hydrated, setHydrated] = useState(false);
   const [locked, setLocked] = useState(false);
+  const [cascadeNotice, setCascadeNotice] = useState(0);
+  // Whether this bracket was already submitted when the editor opened. We only
+  // shout "that cleared later picks" at people who'd previously committed a
+  // complete bracket — a first-time builder hits the per-step gates instead.
+  const [wasSubmitted, setWasSubmitted] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Auto-dismiss the "cleared N later picks" notice after a few seconds.
+  useEffect(() => {
+    if (!cascadeNotice) return;
+    const t = setTimeout(() => setCascadeNotice(0), 6000);
+    return () => clearTimeout(t);
+  }, [cascadeNotice]);
 
   // Load this player's saved bracket from the server (fall back to any local
   // draft if the server has none / is unreachable), then keep both in sync.
@@ -91,6 +103,7 @@ export function BracketWizard({ player }: { player: Player }) {
             !!server.spiritTeamId;
           setDraftState(cascadeTrim(serverHasPicks ? server : local));
           setLocked(!!d.locked);
+          setWasSubmitted(!!d.submittedAt);
         } else if (!cancelled) {
           setDraftState(local);
         }
@@ -129,9 +142,14 @@ export function BracketWizard({ player }: { player: Player }) {
 
   function setDraft(updater: (d: DraftBracket) => DraftBracket) {
     setDraftState((prev) => {
-      const next = cascadeTrim(updater(prev));
+      const updated = updater(prev);
+      const next = cascadeTrim(updated);
+      // How many later-round picks did the cascade clear (beyond what the user
+      // directly changed)? If any, surface a notice so it isn't silent.
+      const trimmed = downstreamCount(updated) - downstreamCount(next);
       saveDraft(next); // local backup
       if (!locked) scheduleServerSave(next);
+      if (trimmed > 0 && wasSubmitted) setTimeout(() => setCascadeNotice(trimmed), 0);
       return next;
     });
   }
@@ -241,6 +259,15 @@ export function BracketWizard({ player }: { player: Player }) {
           🔒 Brackets are locked — viewing only.
         </div>
       )}
+      {cascadeNotice > 0 && (
+        <div
+          className="px-4 py-2 text-center text-xs shrink-0 font-medium"
+          style={{ background: "rgba(239, 68, 68, 0.12)", color: "var(--destructive)" }}
+        >
+          ⚠ That change cleared {cascadeNotice} later-round pick
+          {cascadeNotice > 1 ? "s" : ""} — review the affected rounds.
+        </div>
+      )}
 
       <main className={`flex-1 min-h-0 overflow-y-auto ${chrome ? "px-4 pb-6" : ""}`}>
         {step.kind === "intro" && <Intro onStart={next} />}
@@ -293,6 +320,16 @@ export function BracketWizard({ player }: { player: Player }) {
 function jumpTo(kind: Step["kind"], setStepIdx: (n: number) => void) {
   const i = STEPS.findIndex((s) => s.kind === kind);
   if (i >= 0) setStepIdx(i);
+}
+
+// Count of "downstream" picks (wildcards + every knockout round) — used to detect
+// when an early-pick edit cascades away later-round selections.
+function downstreamCount(d: DraftBracket): number {
+  const ko = (["R16", "QF", "SF", "FINAL", "CHAMPION"] as KnockoutRound[]).reduce(
+    (n, r) => n + (d.rounds[r]?.length ?? 0),
+    0,
+  );
+  return d.bestThirds.length + ko;
 }
 
 // ── Header / progress ────────────────────────────────────────────────────────

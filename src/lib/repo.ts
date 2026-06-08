@@ -4,7 +4,7 @@
 
 import { randomUUID } from "node:crypto";
 import { db, kvGet, kvSet, KV } from "./db";
-import { emptyDraft, bracketComplete, type DraftBracket } from "./bracketState";
+import { emptyDraft, bracketComplete, cascadeTrim, type DraftBracket } from "./bracketState";
 import { emptyResults, type Results } from "./scoring";
 
 export interface Player {
@@ -101,16 +101,20 @@ export function markAiAssisted(playerId: string): void {
 }
 
 export function saveDraft(playerId: string, draft: DraftBracket, submit: boolean): void {
+  // Normalize before persisting: cascadeTrim drops any downstream pick that's no
+  // longer valid given earlier picks, so the DB can never hold a self-contradictory
+  // bracket regardless of who's writing (wizard, AI, or a direct API call).
+  const clean = cascadeTrim(draft);
   const groupPicks = JSON.stringify({
-    groupOrder: draft.groupOrder,
-    bestThirds: draft.bestThirds,
+    groupOrder: clean.groupOrder,
+    bestThirds: clean.bestThirds,
   });
-  const roundTeams = JSON.stringify(draft.rounds);
+  const roundTeams = JSON.stringify(clean.rounds);
   // Stamp submitted_at the first time a bracket is complete — on explicit
   // "Lock it in" OR a plain autosave that happens to be complete. COALESCE keeps
   // it sticky, so a later edit that cascades a bracket back to incomplete (and
   // autosaves that) never drops the player out of the pot. [pot-membership]
-  const stampSubmitted = submit || bracketComplete(draft);
+  const stampSubmitted = submit || bracketComplete(clean);
   db()
     .prepare(
       `UPDATE bracket
@@ -119,7 +123,7 @@ export function saveDraft(playerId: string, draft: DraftBracket, submit: boolean
              ${stampSubmitted ? ", submitted_at = COALESCE(submitted_at, datetime('now'))" : ""}
        WHERE player_id = ?`,
     )
-    .run(groupPicks, roundTeams, draft.spiritTeamId, draft.finalGoals, playerId);
+    .run(groupPicks, roundTeams, clean.spiritTeamId, clean.finalGoals, playerId);
 }
 
 /** Every player paired with their saved bracket — for the leaderboard. */

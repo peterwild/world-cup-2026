@@ -16,7 +16,7 @@ import {
   type Results,
   type ScoreBreakdown,
 } from "./scoring";
-import { bracketComplete } from "./bracketState";
+import { bracketComplete, cascadeTrim } from "./bracketState";
 import { computePayouts } from "./tournament";
 
 export interface Standing {
@@ -27,6 +27,7 @@ export interface Standing {
   spiritChampion: boolean;
   payoutCents: number;
   aiAssisted: boolean;
+  complete: boolean;
 }
 
 export interface Leaderboard {
@@ -41,13 +42,17 @@ export interface Leaderboard {
 }
 
 export function computeLeaderboard(): Leaderboard {
-  // You're "in the pool" once you've committed a complete bracket — and you
-  // STAY in even if a later edit cascades it back to incomplete (submitted_at is
-  // stamped + sticky on any complete save). Currently-complete is kept too, so
-  // brackets completed before this became sticky aren't dropped. [pot-membership]
-  const entries = getAllEntries().filter(
-    (e) => e.submittedAt !== null || bracketComplete(e.draft),
-  );
+  // Normalize every stored draft through cascadeTrim before we judge or score
+  // it — a pick only counts if it's still validly reachable given the player's
+  // earlier picks, so an inconsistent/legacy row can't mis-score. (All live
+  // write paths already cascadeTrim, so for current data this is a no-op.)
+  const entries = getAllEntries()
+    .map((e) => ({ ...e, draft: cascadeTrim(e.draft) }))
+    // You're "in the pool" once you've committed a complete bracket — and you
+    // STAY in even if a later edit cascades it back to incomplete (submitted_at
+    // is stamped + sticky on any complete save). Currently-complete is kept too,
+    // so brackets completed before this became sticky aren't dropped.
+    .filter((e) => e.submittedAt !== null || bracketComplete(e.draft));
   const results = getResults();
   const buyInCents = getBuyInCents();
 
@@ -56,6 +61,7 @@ export function computeLeaderboard(): Leaderboard {
     score: scoreBracket(e.draft, results),
     tiebreak: tiebreakDistance(e.draft, results),
     aiAssisted: e.aiAssisted,
+    complete: bracketComplete(e.draft),
   }));
 
   // Rank by total desc, then closest tiebreaker (nulls last), then name.
@@ -83,6 +89,7 @@ export function computeLeaderboard(): Leaderboard {
     spiritChampion: s.score.spiritChampion,
     payoutCents: payouts[i] ?? 0,
     aiAssisted: s.aiAssisted,
+    complete: s.complete,
   }));
 
   return {
