@@ -154,10 +154,14 @@ export default async function LeaderboardPage() {
                   <div className="eyebrow">pts</div>
                 )}
               </div>
-              {/* Post-lock the row links to that player's bracket (›); before
-                  lock we tease it with a 🔒 so people know to come back. */}
-              <span className="text-muted-foreground shrink-0" aria-hidden>
-                {locked ? "›" : "🔒"}
+              {/* Post-lock the row links to that player's bracket ("View ›");
+                  before lock the action itself is what's locked, so label it
+                  "🔒 View" — not a bare lock that reads as "bracket locked". */}
+              <span
+                className="text-xs shrink-0 whitespace-nowrap font-medium"
+                style={{ color: locked ? "var(--pitch)" : "var(--muted-foreground)" }}
+              >
+                {locked ? "View ›" : "🔒 View"}
               </span>
             </>
           );
