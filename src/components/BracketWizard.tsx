@@ -457,6 +457,7 @@ function ScoringExplainer() {
           Points for every team that reaches a round, rising each round:
         </p>
         <div className="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-1 text-muted-foreground">
+          <span>Round of 32: {ROUND_POINTS.R32}</span>
           <span>Round of 16: {ROUND_POINTS.R16}</span>
           <span>Quarterfinal: {ROUND_POINTS.QF}</span>
           <span>Semifinal: {ROUND_POINTS.SF}</span>
