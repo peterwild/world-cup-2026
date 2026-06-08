@@ -19,6 +19,11 @@ export default async function LeaderboardPage() {
   const champion = board.championId ? TEAMS_BY_ID[board.championId] : null;
   const payouts = computePayouts(board.potCents);
   const placeLabels = ["1st", "2nd", "3rd"];
+  const placeColors = [
+    { soft: "var(--gold-soft)", line: "var(--gold)" },
+    { soft: "var(--silver-soft)", line: "var(--silver)" },
+    { soft: "var(--bronze-soft)", line: "var(--bronze)" },
+  ];
 
   return (
     <div className="min-h-dvh max-w-xl mx-auto px-4 pb-12">
@@ -56,18 +61,21 @@ export default async function LeaderboardPage() {
             {board.hasResults ? "Current payouts" : "Projected payouts"}
           </div>
           <div className="grid grid-cols-3 gap-2">
-            {payouts.map((cents, i) => (
-              <div
-                key={i}
-                className="rounded-lg border border-border p-2 text-center"
-                style={i === 0 ? { background: "var(--gold-soft)", borderColor: "var(--gold)" } : undefined}
-              >
-                <div className="eyebrow" style={i === 0 ? { color: "var(--gold)" } : undefined}>
-                  {placeLabels[i]} · {Math.round(PAYOUT_SPLIT[i] * 100)}%
+            {payouts.map((cents, i) => {
+              const c = placeColors[i] ?? placeColors[0];
+              return (
+                <div
+                  key={i}
+                  className="rounded-lg border p-2 text-center"
+                  style={{ background: c.soft, borderColor: c.line }}
+                >
+                  <div className="eyebrow" style={{ color: c.line }}>
+                    {placeLabels[i]} · {Math.round(PAYOUT_SPLIT[i] * 100)}%
+                  </div>
+                  <div className="text-lg font-bold tabular-nums">{formatUsd(cents)}</div>
                 </div>
-                <div className="text-lg font-bold tabular-nums">{formatUsd(cents)}</div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>

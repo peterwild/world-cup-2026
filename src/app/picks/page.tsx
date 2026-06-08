@@ -39,6 +39,9 @@ export default async function PicksPage() {
       <header className="pt-5 pb-3 flex items-center justify-between pr-12">
         <span className="eyebrow">{player.name.split(" ")[0]} · My picks</span>
         <div className="flex items-center gap-3">
+          <Link href="/" className="eyebrow underline whitespace-nowrap">
+            ⌂ Home
+          </Link>
           <Link href="/leaderboard" className="eyebrow underline whitespace-nowrap">
             🏆 Leaderboard
           </Link>

@@ -228,6 +228,7 @@ export function BracketWizard({ player }: { player: Player }) {
           total={total}
           step={step}
           playerName={player.name}
+          onHome={() => setStepIdx(0)}
         />
       )}
       {chrome && locked && (
@@ -299,11 +300,13 @@ function Header({
   total,
   step,
   playerName,
+  onHome,
 }: {
   progress: number;
   total: number;
   step: Step;
   playerName: string;
+  onHome: () => void;
 }) {
   const title =
     step.kind === "groups"
@@ -320,7 +323,10 @@ function Header({
   return (
     <header className="px-4 pt-5 pb-3 shrink-0 border-b border-border">
       <div className="flex items-center justify-between gap-3 pr-12">
-        <span className="eyebrow truncate min-w-0">
+        <button onClick={onHome} className="eyebrow underline whitespace-nowrap shrink-0">
+          ⌂ Home
+        </button>
+        <span className="eyebrow truncate min-w-0 flex-1 text-center">
           Step {progress} / {total} · {playerName.split(" ")[0]}
         </span>
         <a href="/leaderboard" className="eyebrow underline whitespace-nowrap shrink-0">
