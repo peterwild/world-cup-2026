@@ -3,7 +3,7 @@ import Link from "next/link";
 import { getSessionPlayerId } from "@/lib/session";
 import { getGroupName } from "@/lib/repo";
 import { computeLeaderboard, formatUsd } from "@/lib/standings";
-import { PAYOUT_SPLIT } from "@/lib/tournament";
+import { PAYOUT_SPLIT, computePayouts } from "@/lib/tournament";
 import { TEAMS_BY_ID } from "@/lib/teams";
 import { Flag } from "@/components/Flag";
 
@@ -17,14 +17,21 @@ export default async function LeaderboardPage() {
   const board = computeLeaderboard();
   const groupName = getGroupName();
   const champion = board.championId ? TEAMS_BY_ID[board.championId] : null;
+  const payouts = computePayouts(board.potCents);
+  const placeLabels = ["1st", "2nd", "3rd"];
 
   return (
     <div className="min-h-dvh max-w-xl mx-auto px-4 pb-12">
       <header className="pt-5 pb-3 flex items-center justify-between pr-12">
         <span className="eyebrow">{groupName} · Leaderboard</span>
-        <Link href="/" className="text-xs text-muted-foreground underline whitespace-nowrap">
-          ← bracket
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href="/picks" className="text-xs text-muted-foreground underline whitespace-nowrap">
+            my picks
+          </Link>
+          <Link href="/" className="text-xs text-muted-foreground underline whitespace-nowrap">
+            ← bracket
+          </Link>
+        </div>
       </header>
 
       {/* Pot summary */}
@@ -44,11 +51,24 @@ export default async function LeaderboardPage() {
             <div>{board.paidCount} paid</div>
           </div>
         </div>
-        <div className="mt-3 pt-3 border-t border-border text-xs text-muted-foreground">
-          Pays top 3:{" "}
-          {PAYOUT_SPLIT.map((f, i) => `${["1st", "2nd", "3rd"][i]} ${Math.round(f * 100)}%`).join(
-            " · ",
-          )}
+        <div className="mt-3 pt-3 border-t border-border">
+          <div className="eyebrow mb-2">
+            {board.hasResults ? "Current payouts" : "Projected payouts"}
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {payouts.map((cents, i) => (
+              <div
+                key={i}
+                className="rounded-lg border border-border p-2 text-center"
+                style={i === 0 ? { background: "var(--gold-soft)", borderColor: "var(--gold)" } : undefined}
+              >
+                <div className="eyebrow" style={i === 0 ? { color: "var(--gold)" } : undefined}>
+                  {placeLabels[i]} · {Math.round(PAYOUT_SPLIT[i] * 100)}%
+                </div>
+                <div className="text-lg font-bold tabular-nums">{formatUsd(cents)}</div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 

@@ -371,6 +371,14 @@ function Intro({ onStart }: { onStart: () => void }) {
         >
           <span className="text-base">✨</span> Build it with AI
         </a>
+        <div className="flex items-center gap-4">
+          <a href="/picks" className="text-sm text-muted-foreground underline">
+            View my picks
+          </a>
+          <a href="/leaderboard" className="text-sm text-muted-foreground underline">
+            🏆 Leaderboard
+          </a>
+        </div>
         <button
           onClick={() => setShowScoring((s) => !s)}
           className="text-sm text-muted-foreground underline"

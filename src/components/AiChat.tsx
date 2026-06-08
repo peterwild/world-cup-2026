@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Flag } from "./Flag";
+import { Markdown } from "./Markdown";
 import { TEAMS_BY_ID } from "@/lib/teams";
 import type { ModelKey } from "@/lib/aiBudget";
 import type { DraftBracket } from "@/lib/bracketState";
@@ -50,7 +51,17 @@ export function AiChat() {
   const [error, setError] = useState<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const autoFinalFired = useRef(false);
+
+  // Grow the composer with its content (capped), so multi-line messages are
+  // fully visible while typing.
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 128)}px`;
+  }, [input]);
 
   // Load any in-progress session (resume), or show the model picker.
   useEffect(() => {
@@ -279,7 +290,7 @@ export function AiChat() {
           <main ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-3">
             {messages.length === 0 && <EmptyState onPick={(s) => send(s)} disabled={streaming || locked} />}
             {messages.map((m, i) => (
-              <ChatBubble key={i} bubble={m} streaming={streaming && i === messages.length - 1} />
+              <ChatBubble key={i} bubble={m} />
             ))}
             {error && <p className="text-xs text-destructive text-center">{error}</p>}
           </main>
@@ -325,19 +336,28 @@ export function AiChat() {
                     e.preventDefault();
                     send(input);
                   }}
-                  className="flex gap-2"
+                  className="flex gap-2 items-end"
                 >
-                  <input
+                  <textarea
+                    ref={inputRef}
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      // Enter sends; Shift+Enter (and mobile return) drops a new line.
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        send(input);
+                      }
+                    }}
+                    rows={1}
                     disabled={streaming || locked}
-                    placeholder={locked ? "Locked" : "Ask the AI…"}
-                    className="flex-1 px-4 py-2.5 rounded-xl bg-card border border-border text-sm outline-none focus:border-[var(--pitch)] disabled:opacity-50"
+                    placeholder={locked ? "Locked" : "Ask the AI…  (Shift+Enter for a new line)"}
+                    className="flex-1 resize-none max-h-32 overflow-y-auto px-4 py-2.5 rounded-xl bg-card border border-border text-sm leading-relaxed outline-none focus:border-[var(--pitch)] disabled:opacity-50"
                   />
                   <button
                     type="submit"
                     disabled={streaming || locked || !input.trim()}
-                    className="px-5 py-2.5 rounded-xl text-sm font-semibold active:scale-[0.98] transition disabled:opacity-40"
+                    className="px-5 py-2.5 rounded-xl text-sm font-semibold active:scale-[0.98] transition disabled:opacity-40 shrink-0"
                     style={{ background: "var(--pitch)", color: "white" }}
                   >
                     {streaming ? "…" : "Send"}
@@ -456,21 +476,37 @@ function EmptyState({ onPick, disabled }: { onPick: (s: string) => void; disable
   );
 }
 
-function ChatBubble({ bubble, streaming }: { bubble: Bubble; streaming: boolean }) {
+function TypingDots() {
+  return (
+    <span className="typing-dots" aria-label="AI is typing">
+      <span />
+      <span />
+      <span />
+    </span>
+  );
+}
+
+function ChatBubble({ bubble }: { bubble: Bubble }) {
   const isUser = bubble.role === "user";
+  const empty = !bubble.text;
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
       <div className={`max-w-[85%] ${isUser ? "items-end" : "items-start"} flex flex-col gap-1`}>
         <div
-          className="rounded-2xl px-3.5 py-2.5 text-sm whitespace-pre-wrap leading-relaxed"
+          className="rounded-2xl px-3.5 py-2.5 text-sm"
           style={
             isUser
               ? { background: "var(--pitch-soft)", color: "var(--foreground)" }
               : { background: "var(--card)", border: "1px solid var(--border)" }
           }
         >
-          {bubble.text || (streaming ? "…" : "")}
-          {streaming && bubble.text && <span className="opacity-50">▍</span>}
+          {isUser ? (
+            <span className="whitespace-pre-wrap leading-relaxed">{bubble.text}</span>
+          ) : empty ? (
+            <TypingDots />
+          ) : (
+            <Markdown text={bubble.text} />
+          )}
         </div>
         {bubble.costCents != null && (
           <span className="eyebrow px-1">+{fmt(bubble.costCents)}</span>
