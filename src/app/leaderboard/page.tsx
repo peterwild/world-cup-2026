@@ -154,28 +154,34 @@ export default async function LeaderboardPage() {
                   <div className="eyebrow">pts</div>
                 )}
               </div>
-              {/* Post-lock the row links to that player's bracket ("View ›");
-                  before lock the action itself is what's locked, so label it
-                  "🔒 View" — not a bare lock that reads as "bracket locked". */}
-              <span
-                className="text-xs shrink-0 whitespace-nowrap font-medium"
-                style={{ color: locked ? "var(--pitch)" : "var(--muted-foreground)" }}
-              >
-                {locked ? "View ›" : "🔒 View"}
-              </span>
+              {/* Whole row is the link post-lock; a chevron is the only cue
+                  (no caption + no hover on mobile). Pre-lock the row is dimmed
+                  + non-interactive so it reads as "not active yet". */}
+              {locked && (
+                <span
+                  className="shrink-0 text-lg leading-none text-muted-foreground"
+                  aria-hidden
+                >
+                  ›
+                </span>
+              )}
             </>
           );
           return locked ? (
             <Link
               key={s.player.id}
               href={isMe ? "/picks" : `/picks/${s.player.id}`}
-              className={`${rowClass} active:scale-[0.99] transition`}
+              className={`${rowClass} transition active:scale-[0.99]`}
               style={rowStyle}
             >
               {inner}
             </Link>
           ) : (
-            <div key={s.player.id} className={rowClass} style={rowStyle}>
+            <div
+              key={s.player.id}
+              className={`${rowClass} opacity-60 cursor-not-allowed`}
+              style={rowStyle}
+            >
               {inner}
             </div>
           );
