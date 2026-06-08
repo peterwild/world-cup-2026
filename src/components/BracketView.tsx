@@ -1,4 +1,4 @@
-import { GROUP_IDS, TEAMS_BY_ID, teamsInGroup } from "@/lib/teams";
+import { GROUP_IDS, TEAMS_BY_ID } from "@/lib/teams";
 import type { DraftBracket } from "@/lib/bracketState";
 import type { Results } from "@/lib/scoring";
 import {
@@ -80,21 +80,23 @@ export function BracketView({
               <section key={g} className="card-surface rounded-xl p-3 border border-border">
                 <div className="font-bold text-sm mb-2">Group {g}</div>
                 <div className="space-y-1.5">
-                  {teamsInGroup(g).map((t) => {
-                    const rank = order.indexOf(t.id);
-                    if (rank < 0) return null;
-                    const wildcard = rank === 2 && draft.bestThirds.includes(t.id);
+                  {/* In the player's predicted finishing order (1st → 2nd → 3rd),
+                      not alphabetical. */}
+                  {order.map((id, rank) => {
+                    const t = TEAMS_BY_ID[id];
+                    if (!t) return null;
+                    const wildcard = rank === 2 && draft.bestThirds.includes(id);
                     // Rank 0/1 = advance picks (group result). Rank 2 only scores
                     // if it's a wildcard, via the R32 field. Non-wildcard 3rds
                     // are just a ranking — no overlay.
                     let status: PickStatus | undefined;
                     if (showStatus) {
-                      if (rank <= 1) status = groupAdvanceStatus(results, g, t.id);
-                      else if (wildcard) status = r32PickStatus(results, t.id);
+                      if (rank <= 1) status = groupAdvanceStatus(results, g, id);
+                      else if (wildcard) status = r32PickStatus(results, id);
                     }
-                    const winner = rank === 0 && showStatus && groupWinnerHit(results, g, t.id);
+                    const winner = rank === 0 && showStatus && groupWinnerHit(results, g, id);
                     return (
-                      <div key={t.id} className="flex items-center gap-2 text-sm">
+                      <div key={id} className="flex items-center gap-2 text-sm">
                         <span className="eyebrow w-6">{ORDINAL[rank]}</span>
                         <Flag code={t.flag} />
                         <Name name={t.name} status={status} />
