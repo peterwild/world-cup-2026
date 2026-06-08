@@ -124,7 +124,7 @@ export default async function LeaderboardPage() {
             )}
             <p className="text-xs text-muted-foreground">
               {lockAt
-                ? "Then tap anyone to see their full bracket."
+                ? "Tap anyone to see their full bracket."
                 : "🔒 After kickoff, tap anyone to see their full bracket."}
             </p>
           </div>
