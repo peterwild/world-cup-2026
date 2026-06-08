@@ -74,11 +74,11 @@ export default async function LeaderboardPage() {
       {champion && (
         <section
           className="mt-3 rounded-xl p-3 border flex items-center gap-3"
-          style={{ background: "var(--gold-soft)", borderColor: "var(--gold)" }}
+          style={{ background: "var(--podium-gold-soft)", borderColor: "var(--podium-gold)" }}
         >
           <Flag code={champion.flag} lg />
           <div>
-            <div className="eyebrow" style={{ color: "var(--gold)" }}>
+            <div className="eyebrow" style={{ color: "var(--podium-gold)" }}>
               World Champion
             </div>
             <div className="font-bold">{champion.name}</div>
