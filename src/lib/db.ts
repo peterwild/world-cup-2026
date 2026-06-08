@@ -99,6 +99,23 @@ function migrate(d: DatabaseSync) {
       updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
+
+  // Idempotent column adds. The CREATE TABLEs above only take effect on a fresh
+  // DB; the live box already has these tables, so new columns need an explicit
+  // ALTER guarded by a column-existence check.
+  addColumnIfMissing(d, "bracket", "ai_assisted", "INTEGER NOT NULL DEFAULT 0");
+}
+
+function addColumnIfMissing(
+  d: DatabaseSync,
+  table: string,
+  column: string,
+  def: string,
+): void {
+  const cols = d.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+  if (!cols.some((c) => c.name === column)) {
+    d.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${def}`);
+  }
 }
 
 // ── kv helpers ───────────────────────────────────────────────────────────────

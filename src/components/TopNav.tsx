@@ -24,7 +24,9 @@ export function TopNav({
   context,
   action,
 }: {
-  current: NavPage;
+  // Omit `current` (e.g. when viewing another player's bracket) to show all
+  // three links — nothing is the "current" page.
+  current?: NavPage;
   context?: React.ReactNode;
   action?: React.ReactNode;
 }) {

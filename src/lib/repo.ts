@@ -62,15 +62,20 @@ interface BracketRow {
   spirit_team_id: string | null;
   final_goals_tiebreaker: number | null;
   submitted_at: string | null;
+  ai_assisted: number;
 }
 
-export function getDraft(playerId: string): { draft: DraftBracket; submittedAt: string | null } {
+export function getDraft(playerId: string): {
+  draft: DraftBracket;
+  submittedAt: string | null;
+  aiAssisted: boolean;
+} {
   const r = db()
     .prepare(
-      "SELECT group_picks, round_teams, spirit_team_id, final_goals_tiebreaker, submitted_at FROM bracket WHERE player_id = ?",
+      "SELECT group_picks, round_teams, spirit_team_id, final_goals_tiebreaker, submitted_at, ai_assisted FROM bracket WHERE player_id = ?",
     )
     .get(playerId) as BracketRow | undefined;
-  if (!r) return { draft: emptyDraft(), submittedAt: null };
+  if (!r) return { draft: emptyDraft(), submittedAt: null, aiAssisted: false };
 
   const gp = safeParse<{ groupOrder?: DraftBracket["groupOrder"]; bestThirds?: string[] }>(
     r.group_picks,
@@ -86,7 +91,13 @@ export function getDraft(playerId: string): { draft: DraftBracket; submittedAt: 
     spiritTeamId: r.spirit_team_id,
     finalGoals: r.final_goals_tiebreaker,
   };
-  return { draft, submittedAt: r.submitted_at };
+  return { draft, submittedAt: r.submitted_at, aiAssisted: !!r.ai_assisted };
+}
+
+/** Sticky flag: set once when a player accepts an AI-built bracket. Never
+ *  cleared — survives later manual edits (that's the point of the badge). */
+export function markAiAssisted(playerId: string): void {
+  db().prepare("UPDATE bracket SET ai_assisted = 1 WHERE player_id = ?").run(playerId);
 }
 
 export function saveDraft(playerId: string, draft: DraftBracket, submit: boolean): void {
@@ -107,13 +118,18 @@ export function saveDraft(playerId: string, draft: DraftBracket, submit: boolean
 }
 
 /** Every player paired with their saved bracket — for the leaderboard. */
-export function getAllEntries(): { player: Player; draft: DraftBracket; submittedAt: string | null }[] {
+export function getAllEntries(): {
+  player: Player;
+  draft: DraftBracket;
+  submittedAt: string | null;
+  aiAssisted: boolean;
+}[] {
   const players = db()
     .prepare("SELECT * FROM player ORDER BY name COLLATE NOCASE")
     .all() as unknown as PlayerRow[];
   return players.map((p) => {
-    const { draft, submittedAt } = getDraft(p.id);
-    return { player: toPlayer(p), draft, submittedAt };
+    const { draft, submittedAt, aiAssisted } = getDraft(p.id);
+    return { player: toPlayer(p), draft, submittedAt, aiAssisted };
   });
 }
 

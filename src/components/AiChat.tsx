@@ -252,7 +252,7 @@ export function AiChat() {
       const res = await fetch("/api/bracket", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ draft: proposal, submit: false }),
+        body: JSON.stringify({ draft: proposal, submit: false, aiAssisted: true }),
       });
       if (res.status === 423) {
         setLocked(true);

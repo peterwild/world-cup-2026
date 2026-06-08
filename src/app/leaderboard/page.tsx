@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { getSessionPlayerId } from "@/lib/session";
 import { getGroupName } from "@/lib/repo";
+import { isLocked } from "@/lib/db";
 import { computeLeaderboard, formatUsd } from "@/lib/standings";
 import { PAYOUT_SPLIT, computePayouts } from "@/lib/tournament";
 import { TEAMS_BY_ID } from "@/lib/teams";
@@ -16,6 +18,7 @@ export default async function LeaderboardPage() {
 
   const board = computeLeaderboard();
   const groupName = getGroupName();
+  const locked = isLocked();
   const champion = board.championId ? TEAMS_BY_ID[board.championId] : null;
   const payouts = computePayouts(board.potCents);
   const placeLabels = ["1st", "2nd", "3rd"];
@@ -111,15 +114,13 @@ export default async function LeaderboardPage() {
         {board.standings.map((s) => {
           const isMe = s.player.id === meId;
           const showPayout = board.hasResults && s.payoutCents > 0;
-          return (
-            <div
-              key={s.player.id}
-              className="flex items-center gap-3 rounded-xl px-3 py-3 border"
-              style={{
-                background: isMe ? "var(--pitch-soft)" : "var(--card)",
-                borderColor: isMe ? "var(--pitch)" : "var(--border)",
-              }}
-            >
+          const rowClass = "flex items-center gap-3 rounded-xl px-3 py-3 border";
+          const rowStyle = {
+            background: isMe ? "var(--pitch-soft)" : "var(--card)",
+            borderColor: isMe ? "var(--pitch)" : "var(--border)",
+          };
+          const inner = (
+            <>
               <span className="w-6 text-center font-bold tabular-nums text-muted-foreground">
                 {s.rank}
               </span>
@@ -127,6 +128,7 @@ export default async function LeaderboardPage() {
                 <div className="font-semibold text-sm flex items-center gap-1.5">
                   <span className="truncate">{s.player.name}</span>
                   {isMe && <span className="eyebrow">you</span>}
+                  {s.aiAssisted && <span title="AI Assisted">✨</span>}
                   {s.spiritChampion && <span title="Spirit Champion">🏆</span>}
                   {s.score.correctChampion && (
                     <span title="Called the champion">👑</span>
@@ -149,6 +151,26 @@ export default async function LeaderboardPage() {
                   <div className="eyebrow">pts</div>
                 )}
               </div>
+              {/* Post-lock, the whole row links to that player's bracket */}
+              {locked && (
+                <span className="text-muted-foreground shrink-0" aria-hidden>
+                  ›
+                </span>
+              )}
+            </>
+          );
+          return locked ? (
+            <Link
+              key={s.player.id}
+              href={isMe ? "/picks" : `/picks/${s.player.id}`}
+              className={`${rowClass} active:scale-[0.99] transition`}
+              style={rowStyle}
+            >
+              {inner}
+            </Link>
+          ) : (
+            <div key={s.player.id} className={rowClass} style={rowStyle}>
+              {inner}
             </div>
           );
         })}

@@ -26,6 +26,7 @@ export interface Standing {
   tiebreak: number | null;
   spiritChampion: boolean;
   payoutCents: number;
+  aiAssisted: boolean;
 }
 
 export interface Leaderboard {
@@ -50,6 +51,7 @@ export function computeLeaderboard(): Leaderboard {
     player: e.player,
     score: scoreBracket(e.draft, results),
     tiebreak: tiebreakDistance(e.draft, results),
+    aiAssisted: e.aiAssisted,
   }));
 
   // Rank by total desc, then closest tiebreaker (nulls last), then name.
@@ -76,6 +78,7 @@ export function computeLeaderboard(): Leaderboard {
     tiebreak: s.tiebreak,
     spiritChampion: s.score.spiritChampion,
     payoutCents: payouts[i] ?? 0,
+    aiAssisted: s.aiAssisted,
   }));
 
   return {

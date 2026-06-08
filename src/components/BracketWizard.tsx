@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import type { Player } from "@/lib/repo";
 import { Flag } from "./Flag";
 import { PoolTeaser } from "./PoolTeaser";
@@ -372,20 +373,20 @@ function Intro({ onStart }: { onStart: () => void }) {
         Start your bracket
       </button>
       <div className="flex flex-col items-center gap-3">
-        <a
+        <Link
           href="/ai"
           className="text-sm flex items-center gap-2 px-4 py-2 rounded-full border active:scale-[0.98] transition"
           style={{ borderColor: "var(--pitch)", color: "var(--pitch)" }}
         >
           <span className="text-base">✨</span> Build it with AI
-        </a>
+        </Link>
         <div className="flex items-center gap-4">
-          <a href="/picks" className="text-sm text-muted-foreground underline">
+          <Link href="/picks" className="text-sm text-muted-foreground underline">
             View my picks
-          </a>
-          <a href="/leaderboard" className="text-sm text-muted-foreground underline">
+          </Link>
+          <Link href="/leaderboard" className="text-sm text-muted-foreground underline">
             🏆 Leaderboard
-          </a>
+          </Link>
         </div>
         <button
           onClick={() => setShowScoring((s) => !s)}

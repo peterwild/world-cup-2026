@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDraft, saveDraft } from "@/lib/repo";
+import { getDraft, saveDraft, markAiAssisted } from "@/lib/repo";
 import { getSessionPlayerId } from "@/lib/session";
 import { isLocked, kvGet, KV } from "@/lib/db";
 import type { DraftBracket } from "@/lib/bracketState";
@@ -28,10 +28,13 @@ export async function POST(req: NextRequest) {
       { status: 423 },
     );
   }
-  const { draft, submit } = (await req.json()) as {
+  const { draft, submit, aiAssisted } = (await req.json()) as {
     draft: DraftBracket;
     submit?: boolean;
+    aiAssisted?: boolean;
   };
   saveDraft(id, draft, !!submit);
+  // Sticky AI-assisted flag, set when the player accepts an AI-built bracket.
+  if (aiAssisted) markAiAssisted(id);
   return NextResponse.json({ ok: true });
 }
