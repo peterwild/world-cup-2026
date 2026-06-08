@@ -127,7 +127,7 @@ export default async function LeaderboardPage() {
           <div className="text-center pb-1 space-y-0.5">
             {lockAt && (
               <p className="text-xs font-medium">
-                🔒 Everyone&apos;s brackets become viewable in{" "}
+                🔒 Everyone&apos;s bracket becomes viewable in{" "}
                 <span style={{ color: "var(--pitch)" }}>
                   <Countdown target={lockAt} />
                 </span>
