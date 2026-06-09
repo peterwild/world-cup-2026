@@ -1,0 +1,27 @@
+name: Probe football-data format
+
+# Manual-only, read-only. Hits a competition's /matches endpoint and prints the
+# shape poll-scores depends on (status/stage/group/score) plus a live-match delay
+# reading. Pushes nothing. Use it to confirm the free-tier format against a LIVE
+# competition before the World Cup starts. Key stays in GitHub secrets.
+on:
+  workflow_dispatch:
+    inputs:
+      competition:
+        description: "Competition code (BSA is in-season in June; also PL, PD, SA, CL, WC)"
+        required: false
+        type: string
+        default: "BSA"
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Probe
+        env:
+          FOOTBALL_DATA_KEY: ${{ secrets.FOOTBALL_DATA_KEY }}
+        run: node scripts/probe-format.mjs "${{ inputs.competition }}"
