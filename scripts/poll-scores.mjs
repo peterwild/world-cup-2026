@@ -19,7 +19,23 @@ if (!KEY) {
   process.exit(1);
 }
 
-const res = await fetch("https://api.football-data.org/v4/competitions/WC/matches", {
+// football-data drops the occasional TLS handshake (ECONNRESET / "other side
+// closed"). Those are transient — retry a couple times in-run rather than
+// failing the whole job and waiting ~20 min for the next cron.
+async function fetchWithRetry(url, init, attempts = 3) {
+  for (let i = 1; i <= attempts; i++) {
+    try {
+      return await fetch(url, init);
+    } catch (err) {
+      if (i === attempts) throw err;
+      const wait = 2000 * i; // 2s, 4s
+      console.warn(`fetch failed (attempt ${i}/${attempts}): ${err.cause?.code ?? err.message} — retrying in ${wait}ms`);
+      await new Promise((r) => setTimeout(r, wait));
+    }
+  }
+}
+
+const res = await fetchWithRetry("https://api.football-data.org/v4/competitions/WC/matches", {
   headers: { "X-Auth-Token": KEY },
 });
 // Free-tier rate limit — don't fail the run, the next cron will catch up.
