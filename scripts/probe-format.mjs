@@ -23,7 +23,21 @@ if (!KEY) {
   process.exit(1);
 }
 
-const res = await fetch(`https://api.football-data.org/v4/competitions/${COMP}/matches`, {
+// Same transient-drop guard as poll-scores — football-data drops handshakes.
+async function fetchWithRetry(url, init, attempts = 4) {
+  for (let i = 1; i <= attempts; i++) {
+    try {
+      return await fetch(url, init);
+    } catch (err) {
+      if (i === attempts) throw err;
+      const wait = 2000 * i;
+      console.warn(`fetch failed (attempt ${i}/${attempts}): ${err.cause?.code ?? err.message} — retrying in ${wait}ms`);
+      await new Promise((r) => setTimeout(r, wait));
+    }
+  }
+}
+
+const res = await fetchWithRetry(`https://api.football-data.org/v4/competitions/${COMP}/matches`, {
   headers: { "X-Auth-Token": KEY },
 });
 
