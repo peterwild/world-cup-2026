@@ -50,6 +50,15 @@ if (!res.ok) {
 
 const { matches = [] } = await res.json();
 
+// football-data occasionally returns 200 with an empty matches array during
+// instability (observed pre-tournament). The WC schedule is 104 fixtures from
+// the moment the bracket is published, so an empty feed is never legitimate —
+// pushing it would wipe live standings on the box. Skip; the next run catches up.
+if (matches.length === 0) {
+  console.warn("Empty matches array from football-data (transient) — skipping push; next run retries.");
+  process.exit(0);
+}
+
 // ── Draw verification: compare the live feed's groups to our seed (teams.ts) ──
 if (PRINT_GROUPS) {
   const { groups: feedIds, unmapped } = groupsFromMatches(matches);
