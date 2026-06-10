@@ -17,7 +17,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { GroupId } from "./teams";
-import { KNOCKOUT_ROUNDS, type KnockoutRound } from "./tournament";
+import { KNOCKOUT_ROUNDS, ROUND_SIZE, type KnockoutRound } from "./tournament";
 import { emptyResults, scoreBracket, type Results } from "./scoring";
 import type { DraftBracket } from "./bracketState";
 import { mulberry32, simulateTournament, type SimOutcome } from "./simulate";
@@ -198,4 +198,36 @@ export function simulatePool(
   }
 
   return { entries: entryOdds, teams, sims, population };
+}
+
+// ── Heartbreak meter ─────────────────────────────────────────────────────────
+// The spirit team's pulse: alive (💗/💓 by survival odds), out (💔), or
+// champion (🏆 — the leaderboard already crowns that separately). Only 1 of 48
+// spirit teams survives; near-universal heartbreak is the feature.
+
+export type SpiritPulse =
+  | { state: "champion" }
+  | { state: "out" }
+  /** Still in it: p = P(surviving its next undecided round). */
+  | { state: "alive"; p: number; nextRound: KnockoutRound };
+
+export function spiritPulse(
+  teamId: string,
+  teams: Record<string, TeamOdds>,
+  actual: Results,
+): SpiritPulse {
+  if (actual.roundTeams.CHAMPION?.[0] === teamId) return { state: "champion" };
+  // Walk the rounds in order; the first one reality hasn't fully decided yet
+  // is the team's next survival checkpoint. (Results granularity: a team that
+  // lost mid-round reads "alive" until its round completes — same coarseness
+  // as simulate.ts, converges as the poller fills Results in.)
+  for (const round of KNOCKOUT_ROUNDS) {
+    const known = actual.roundTeams[round] ?? [];
+    if (known.length >= ROUND_SIZE[round]) {
+      if (!known.includes(teamId)) return { state: "out" };
+      continue; // made it through this round
+    }
+    return { state: "alive", p: teams[teamId]?.reach[round] ?? 0, nextRound: round };
+  }
+  return { state: "out" }; // tournament fully decided and they aren't champion
 }

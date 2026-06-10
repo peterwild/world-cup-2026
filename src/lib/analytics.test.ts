@@ -1,10 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { GROUP_IDS } from "./teams.ts";
+import { GROUP_IDS, TEAMS } from "./teams.ts";
 import { emptyResults, type Results } from "./scoring.ts";
 import { bracketComplete } from "./bracketState.ts";
 import { mulberry32, simulateTournament } from "./simulate.ts";
-import { outcomeToDraft, simulatePool, type PoolEntry } from "./analytics.ts";
+import { outcomeToDraft, simulatePool, spiritPulse, type PoolEntry } from "./analytics.ts";
 
 /** A "smart" bracket: one model draw — internally consistent, chalk-flavored. */
 function smartEntry(id: string, seed: number): PoolEntry {
@@ -93,6 +93,31 @@ test("conditioning flows through: known champion forces the pick's win prob up",
   const other = sim.entries.find((e) => e.id === "haiFan")!;
   assert.ok(fan.winProb > other.winProb, "champion-correct entry must be favored");
   assert.equal(sim.teams["arg"].champion, 1, "champion conditioned to certainty");
+});
+
+test("spiritPulse: alive → checkpoint round; out when a decided round excludes them; champion", () => {
+  const sim = simulatePool([smartEntry("a", 61)], emptyResults(), {
+    sims: 200,
+    population: 10,
+    seed: 6,
+  });
+
+  // Pre-tournament: everyone's alive, checkpoint = making the knockouts.
+  const pre = spiritPulse("esp", sim.teams, emptyResults());
+  assert.ok(pre.state === "alive" && pre.nextRound === "R32" && pre.p > 0.8);
+
+  // Fully-decided tournament: the champion is crowned, a team that never made
+  // the R32 is heartbroken.
+  const done = simulateTournament(emptyResults(), mulberry32(7)).results;
+  const champ = done.roundTeams.CHAMPION![0];
+  assert.deepEqual(spiritPulse(champ, sim.teams, done), { state: "champion" });
+  const out = TEAMS.find((t) => !done.roundTeams.R32!.includes(t.id))!.id;
+  assert.equal(spiritPulse(out, sim.teams, done).state, "out");
+
+  // Partially-decided: R32 published, R16 not → an R32 team's checkpoint is R16.
+  const partial: Results = { ...emptyResults(), roundTeams: { R32: done.roundTeams.R32 } };
+  const mid = spiritPulse(done.roundTeams.R32![0], sim.teams, partial);
+  assert.ok(mid.state === "alive" && mid.nextRound === "R16");
 });
 
 test("deterministic: same seed, same numbers", () => {

@@ -13,7 +13,6 @@ import {
   championOf,
   scoreBracket,
   tiebreakDistance,
-  type Results,
   type ScoreBreakdown,
 } from "./scoring";
 import { bracketComplete, cascadeTrim } from "./bracketState";
@@ -25,6 +24,7 @@ export interface Standing {
   score: ScoreBreakdown;
   tiebreak: number | null;
   spiritChampion: boolean;
+  spiritTeamId: string | null;
   payoutCents: number;
   aiAssisted: boolean;
   complete: boolean;
@@ -62,6 +62,7 @@ export function computeLeaderboard(): Leaderboard {
     tiebreak: tiebreakDistance(e.draft, results),
     aiAssisted: e.aiAssisted,
     complete: bracketComplete(e.draft),
+    spiritTeamId: e.draft.spiritTeamId,
   }));
 
   // Rank by total desc, then closest tiebreaker (nulls last), then name.
@@ -87,6 +88,7 @@ export function computeLeaderboard(): Leaderboard {
     score: s.score,
     tiebreak: s.tiebreak,
     spiritChampion: s.score.spiritChampion,
+    spiritTeamId: s.spiritTeamId,
     payoutCents: payouts[i] ?? 0,
     aiAssisted: s.aiAssisted,
     complete: s.complete,
