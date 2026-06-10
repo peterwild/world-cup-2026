@@ -49,8 +49,13 @@ export function OddsCard({
         </div>
       </div>
       <p className="mt-2 text-xs text-muted-foreground">
-        *vs {population} simulated brackets — not just this pool. From{" "}
-        {sims.toLocaleString()} simulated tournaments; updates as results come in.
+        *Percentile compares you to the world, not this pool: this bracket is on
+        track to beat {Math.round(entry.popPercentile)}% of {population}{" "}
+        computer-generated brackets.
+      </p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        All three numbers come from {sims.toLocaleString()} simulations of the
+        rest of the tournament and update as results come in.
       </p>
     </section>
   );
