@@ -4,40 +4,18 @@ import { getSessionPlayerId } from "@/lib/session";
 import { getGroupName, getResults } from "@/lib/repo";
 import { isLocked, kvGet, KV } from "@/lib/db";
 import { computeLeaderboard, formatUsd } from "@/lib/standings";
-import { PAYOUT_SPLIT, computePayouts, type KnockoutRound } from "@/lib/tournament";
+import { PAYOUT_SPLIT, computePayouts } from "@/lib/tournament";
 import { getOdds } from "@/lib/odds";
 import { spiritPulse } from "@/lib/analytics";
 import { TEAMS_BY_ID } from "@/lib/teams";
 import { Flag } from "@/components/Flag";
 import { TopNav } from "@/components/TopNav";
 import { Countdown } from "@/components/Countdown";
+import { OddsCard, pct } from "@/components/OddsCard";
+import { pulseEmoji, pulseSentence } from "@/components/SpiritPulse";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-/** "12%"; tiny-but-alive probabilities round to "<1%" instead of a dead "0%". */
-function pct(p: number): string {
-  if (p > 0 && p < 0.005) return "<1%";
-  return `${Math.round(p * 100)}%`;
-}
-
-function ordinal(n: number): string {
-  const v = Math.round(n);
-  const m = v % 100;
-  const suffix =
-    m >= 11 && m <= 13 ? "th" : ["th", "st", "nd", "rd"][v % 10 < 4 ? v % 10 : 0];
-  return `${v}${suffix}`;
-}
-
-/** Where the spirit team's next survival checkpoint sits, in plain words. */
-const PULSE_ROUND_LABEL: Record<KnockoutRound, string> = {
-  R32: "the knockouts",
-  R16: "the Round of 16",
-  QF: "the quarterfinals",
-  SF: "the semifinals",
-  FINAL: "the final",
-  CHAMPION: "the title",
-};
 
 export default async function LeaderboardPage() {
   const meId = await getSessionPlayerId();
@@ -135,30 +113,12 @@ export default async function LeaderboardPage() {
 
       {/* Your odds — Monte Carlo, refreshed as results land */}
       {odds && myOdds && (
-        <section className="mt-3 card-surface rounded-xl p-3 border border-border">
-          <div className="eyebrow mb-2">📊 Your odds</div>
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div>
-              <div className="text-lg font-bold tabular-nums">{pct(myOdds.winProb)}</div>
-              <div className="eyebrow">win the pool</div>
-            </div>
-            <div>
-              <div className="text-lg font-bold tabular-nums">{pct(myOdds.top3Prob)}</div>
-              <div className="eyebrow">cash (top 3)</div>
-            </div>
-            <div>
-              <div className="text-lg font-bold tabular-nums">
-                {ordinal(myOdds.popPercentile)}
-              </div>
-              <div className="eyebrow">percentile*</div>
-            </div>
-          </div>
-          <p className="mt-2 text-xs text-muted-foreground">
-            *vs {odds.population} simulated brackets — not just this pool. From{" "}
-            {odds.sims.toLocaleString()} simulated tournaments; updates as results
-            come in.
-          </p>
-        </section>
+        <OddsCard
+          entry={myOdds}
+          sims={odds.sims}
+          population={odds.population}
+          whose="Your odds"
+        />
       )}
 
       {!board.hasResults && (
@@ -238,16 +198,9 @@ export default async function LeaderboardPage() {
                   {isMe && <span className="eyebrow">you</span>}
                   {s.aiAssisted && <span title="AI Assisted">✨</span>}
                   {s.spiritChampion && <span title="Spirit Champion">🏆</span>}
-                  {pulse && pulse.state === "out" && (
-                    <span title={`${spiritName} are out — heartbroken`}>💔</span>
-                  )}
-                  {pulse && pulse.state === "alive" && (
-                    <span
-                      title={`Spirit team ${spiritName}: ${pct(pulse.p)} to ${
-                        pulse.nextRound === "CHAMPION" ? "win" : "reach"
-                      } ${PULSE_ROUND_LABEL[pulse.nextRound]}`}
-                    >
-                      {pulse.p >= 0.5 ? "💗" : "💓"}
+                  {pulse && (
+                    <span title={`Spirit team ${pulseSentence(pulse, spiritName)}`}>
+                      {pulseEmoji(pulse)}
                     </span>
                   )}
                   {s.score.correctChampion && (

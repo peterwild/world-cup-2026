@@ -9,7 +9,9 @@ import {
   r32PickStatus,
 } from "@/lib/pickStatus";
 import type { KnockoutRound } from "@/lib/tournament";
+import type { SpiritPulse } from "@/lib/analytics";
 import { Flag } from "@/components/Flag";
+import { SpiritPulseLine } from "@/components/SpiritPulse";
 
 const ORDINAL = ["1st", "2nd", "3rd"];
 
@@ -20,10 +22,13 @@ export function BracketView({
   draft,
   results,
   showStatus,
+  spiritPulse,
 }: {
   draft: DraftBracket;
   results: Results;
   showStatus: boolean;
+  /** Heartbreak meter for the spirit team — post-lock only (callers gate). */
+  spiritPulse?: SpiritPulse | null;
 }) {
   const champion = draft.rounds.CHAMPION?.[0];
   const finalists = draft.rounds.FINAL ?? [];
@@ -63,7 +68,16 @@ export function BracketView({
       {/* Spirit + tiebreaker */}
       <div className="grid grid-cols-2 gap-3">
         <Section title="Spirit team">
-          {spirit ? <TeamRow id={spirit.id} /> : <Empty />}
+          {spirit ? (
+            <>
+              <TeamRow id={spirit.id} />
+              {spiritPulse && (
+                <SpiritPulseLine pulse={spiritPulse} teamName={spirit.name} />
+              )}
+            </>
+          ) : (
+            <Empty />
+          )}
         </Section>
         <Section title="Final goals (tiebreaker)">
           <span className="text-2xl font-bold tabular-nums">{draft.finalGoals ?? "–"}</span>

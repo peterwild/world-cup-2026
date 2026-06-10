@@ -3,9 +3,12 @@ import { getSessionPlayerId } from "@/lib/session";
 import { getDraft, getPlayer, getResults } from "@/lib/repo";
 import { isLocked } from "@/lib/db";
 import { hasAnyResults } from "@/lib/pickStatus";
+import { getOdds } from "@/lib/odds";
+import { spiritPulse } from "@/lib/analytics";
 import { TopNav } from "@/components/TopNav";
 import { BracketView } from "@/components/BracketView";
 import { AiAssistedBadge } from "@/components/AiAssistedBadge";
+import { OddsCard } from "@/components/OddsCard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,20 +35,41 @@ export default async function PlayerBracketPage({
   const { draft, aiAssisted } = getDraft(id);
   const results = getResults();
   const showStatus = hasAnyResults(results);
+  const firstName = target.name.split(" ")[0];
+
+  // This page only renders post-lock (gate above), so odds always show here
+  // once the cron has cached a snapshot.
+  const odds = getOdds();
+  const theirOdds = odds?.entries.find((e) => e.id === id);
+  const pulse =
+    odds && draft.spiritTeamId ? spiritPulse(draft.spiritTeamId, odds.teams, results) : null;
 
   return (
     <div className="min-h-dvh max-w-xl mx-auto px-4 pb-12">
-      <TopNav context={`${target.name.split(" ")[0]}'s bracket`} />
+      <TopNav context={`${firstName}'s bracket`} />
 
       <div
         className="rounded-xl px-4 py-2.5 text-xs text-center flex items-center justify-center gap-2 flex-wrap"
         style={{ background: "var(--gold-soft)", color: "var(--gold)" }}
       >
-        <span>🔒 {target.name.split(" ")[0]}&apos;s final picks</span>
+        <span>🔒 {firstName}&apos;s final picks</span>
         {aiAssisted && <AiAssistedBadge />}
       </div>
 
-      <BracketView draft={draft} results={results} showStatus={showStatus} />
+      {odds && theirOdds && (
+        <OddsCard
+          entry={theirOdds}
+          sims={odds.sims}
+          population={odds.population}
+          whose={`${firstName}'s odds`}
+        />
+      )}
+      <BracketView
+        draft={draft}
+        results={results}
+        showStatus={showStatus}
+        spiritPulse={pulse}
+      />
     </div>
   );
 }

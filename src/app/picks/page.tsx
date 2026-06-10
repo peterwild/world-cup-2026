@@ -5,9 +5,12 @@ import { getDraft, getPlayer, getResults } from "@/lib/repo";
 import { isLocked } from "@/lib/db";
 import { bracketComplete } from "@/lib/bracketState";
 import { hasAnyResults } from "@/lib/pickStatus";
+import { getOdds } from "@/lib/odds";
+import { spiritPulse } from "@/lib/analytics";
 import { TopNav } from "@/components/TopNav";
 import { BracketView } from "@/components/BracketView";
 import { AiAssistedBadge } from "@/components/AiAssistedBadge";
+import { OddsCard } from "@/components/OddsCard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,6 +26,12 @@ export default async function PicksPage() {
   const locked = isLocked();
   const complete = bracketComplete(draft);
   const showStatus = hasAnyResults(results);
+
+  // Cached Monte Carlo odds — post-lock only, mirrors the leaderboard.
+  const odds = locked ? getOdds() : null;
+  const myOdds = odds?.entries.find((e) => e.id === meId);
+  const pulse =
+    odds && draft.spiritTeamId ? spiritPulse(draft.spiritTeamId, odds.teams, results) : null;
 
   const finalists = draft.rounds.FINAL ?? [];
   const empty =
@@ -76,7 +85,22 @@ export default async function PicksPage() {
           </Link>
         </div>
       ) : (
-        <BracketView draft={draft} results={results} showStatus={showStatus} />
+        <>
+          {odds && myOdds && (
+            <OddsCard
+              entry={myOdds}
+              sims={odds.sims}
+              population={odds.population}
+              whose="Your odds"
+            />
+          )}
+          <BracketView
+            draft={draft}
+            results={results}
+            showStatus={showStatus}
+            spiritPulse={pulse}
+          />
+        </>
       )}
     </div>
   );
