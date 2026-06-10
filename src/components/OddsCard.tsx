@@ -6,12 +6,9 @@ export function pct(p: number): string {
   return `${Math.round(p * 100)}%`;
 }
 
-export function ordinal(n: number): string {
-  const v = Math.round(n);
-  const m = v % 100;
-  const suffix =
-    m >= 11 && m <= 13 ? "th" : ["th", "st", "nd", "rd"][v % 10 < 4 ? v % 10 : 0];
-  return `${v}${suffix}`;
+/** Percentile flipped to "top X%" — never claims better than top 1%. */
+function topShare(percentile: number): string {
+  return `top ${Math.max(1, Math.round(100 - percentile))}%`;
 }
 
 // The Monte Carlo odds card — shared by the leaderboard ("Your odds") and the
@@ -43,15 +40,15 @@ export function OddsCard({
         </div>
         <div>
           <div className="text-lg font-bold tabular-nums">
-            {ordinal(entry.popPercentile)}
+            {topShare(entry.popPercentile)}
           </div>
-          <div className="eyebrow">percentile*</div>
+          <div className="eyebrow">of all brackets*</div>
         </div>
       </div>
       <p className="mt-2 text-xs text-muted-foreground">
-        *Percentile compares you to the world, not this pool: this bracket is on
-        track to beat {Math.round(entry.popPercentile)}% of {population}{" "}
-        computer-generated brackets.
+        *vs the world, not just this pool: on track to finish in the{" "}
+        {topShare(entry.popPercentile)} of {population} computer-generated
+        brackets.
       </p>
       <p className="mt-1 text-xs text-muted-foreground">
         All three numbers come from {sims.toLocaleString()} simulations of the
