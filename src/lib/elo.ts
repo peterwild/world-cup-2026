@@ -1,10 +1,10 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Team strength model: Elo ratings + a Poisson-goals match model.
 //
-// Ratings are a STATIC SNAPSHOT in the spirit of eloratings.net (World Football
-// Elo), approximate as of the pre-tournament window. They feed the Monte Carlo
-// simulator (simulate.ts) — they are inputs to odds, never to scoring, so a
-// stale rating can never affect anyone's points. Refresh by editing this table.
+// Ratings are a STATIC SNAPSHOT from eloratings.net (World Football Elo),
+// fetched pre-tournament. They feed the Monte Carlo simulator (simulate.ts) —
+// they are inputs to odds, never to scoring, so a stale rating can never
+// affect anyone's points. Refresh with scripts/refresh-elo.mjs (--write).
 //
 // Match model: each side's expected goals scale with the Elo gap, then goals
 // are sampled as independent Poissons. Draws fall out naturally (~26% between
@@ -17,29 +17,29 @@ import { TEAMS } from "./teams";
 /** Approximate World-Football-Elo snapshot, pre-tournament 2026. */
 export const ELO: Record<string, number> = {
   // Group A
-  cze: 1720, mex: 1810, kor: 1730, rsa: 1630,
+  cze: 1740, mex: 1875, kor: 1758, rsa: 1517,
   // Group B
-  bih: 1660, can: 1760, qat: 1560, sui: 1820,
+  bih: 1595, can: 1788, qat: 1421, sui: 1891,
   // Group C
-  bra: 1965, hai: 1390, mar: 1830, sco: 1740,
+  bra: 1991, hai: 1548, mar: 1827, sco: 1782,
   // Group D
-  aus: 1690, par: 1790, tur: 1800, usa: 1770,
+  aus: 1777, par: 1834, tur: 1911, usa: 1726,
   // Group E
-  cuw: 1440, ecu: 1860, ger: 1930, civ: 1710,
+  cuw: 1434, ecu: 1938, ger: 1932, civ: 1695,
   // Group F
-  jpn: 1850, ned: 1960, swe: 1670, tun: 1680,
+  jpn: 1906, ned: 1948, swe: 1712, tun: 1628,
   // Group G
-  bel: 1850, egy: 1700, irn: 1730, nzl: 1500,
+  bel: 1894, egy: 1696, irn: 1772, nzl: 1562,
   // Group H
-  cpv: 1510, ksa: 1630, esp: 2170, uru: 1860,
+  cpv: 1578, ksa: 1576, esp: 2157, uru: 1892,
   // Group I
-  fra: 2030, irq: 1560, nor: 1920, sen: 1760,
+  fra: 2063, irq: 1607, nor: 1914, sen: 1860,
   // Group J
-  alg: 1680, arg: 2130, aut: 1790, jor: 1590,
+  alg: 1760, arg: 2115, aut: 1830, jor: 1680,
   // Group K
-  col: 1900, cod: 1610, por: 2000, uzb: 1630,
+  col: 1982, cod: 1652, por: 1986, uzb: 1714,
   // Group L
-  cro: 1850, eng: 2010, gha: 1620, pan: 1650,
+  cro: 1912, eng: 2021, gha: 1510, pan: 1730,
 };
 
 export function eloOf(teamId: string): number {

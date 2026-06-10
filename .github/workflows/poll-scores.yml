@@ -43,3 +43,16 @@ jobs:
           if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="--dry-run"; fi
           if [ "${{ inputs.print_groups }}" = "true" ]; then ARGS="--print-groups"; fi
           node --import ./scripts/ts-ext-resolver.mjs scripts/poll-scores.mjs $ARGS
+
+      # Tell the box to refresh the cached Monte Carlo odds. The endpoint skips
+      # the sim when results haven't changed, so triggering every run is cheap.
+      # Failure-tolerant: odds are a nice-to-have, scores must still flow.
+      - name: Recompute odds
+        if: ${{ inputs.dry_run != true && inputs.print_groups != true }}
+        continue-on-error: true
+        env:
+          SITE_URL: ${{ secrets.SITE_URL }}
+          ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
+        run: |
+          curl -sS --max-time 120 -X POST "$SITE_URL/api/admin/odds" \
+            -H "x-admin-key: $ADMIN_KEY"
