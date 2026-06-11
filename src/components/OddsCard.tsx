@@ -6,9 +6,9 @@ export function pct(p: number): string {
   return `${Math.round(p * 100)}%`;
 }
 
-/** Percentile flipped to "top X%" — never claims better than top 1%. */
+/** Percentile flipped to "Top X%" — never claims better than top 1%. */
 function topShare(percentile: number): string {
-  return `top ${Math.max(1, Math.round(100 - percentile))}%`;
+  return `Top ${Math.max(1, Math.round(100 - percentile))}%`;
 }
 
 // The Monte Carlo odds card — shared by the leaderboard ("Your odds") and the

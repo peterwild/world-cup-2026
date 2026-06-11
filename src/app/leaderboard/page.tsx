@@ -212,11 +212,6 @@ export default async function LeaderboardPage() {
                   {isMe && <span className="eyebrow">you</span>}
                   {s.aiAssisted && <span title="AI Assisted">✨</span>}
                   {s.spiritChampion && <span title="Spirit Champion">🏆</span>}
-                  {pulse && (
-                    <span title={`Spirit team ${pulseSentence(pulse, spiritName)}`}>
-                      {pulseEmoji(pulse)}
-                    </span>
-                  )}
                   {s.score.correctChampion && (
                     <span title="Called the champion">👑</span>
                   )}
@@ -225,6 +220,16 @@ export default async function LeaderboardPage() {
                   <div className="text-xs text-muted-foreground">
                     {s.score.groupPoints} group · {s.score.knockoutPoints} knockout
                     {s.tiebreak !== null && ` · TB ${s.tiebreak}`}
+                  </div>
+                )}
+                {/* Spirit pulse on its own labeled line — next to the name it
+                    read like a badge about the player, not their team. */}
+                {pulse && (
+                  <div
+                    className="text-xs text-muted-foreground"
+                    title={`Spirit team ${pulseSentence(pulse, spiritName)}`}
+                  >
+                    Spirit: {pulseEmoji(pulse)} {spiritName}
                   </div>
                 )}
               </div>
