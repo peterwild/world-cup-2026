@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { isLocked } from "@/lib/db";
 
 // Shared top-of-page nav for the flat pages (leaderboard, picks). One row:
 // a short context label on the left that truncates first, and a fixed-order
@@ -30,11 +31,16 @@ export function TopNav({
   context?: React.ReactNode;
   action?: React.ReactNode;
 }) {
+  // Post-lock, "/" redirects to the leaderboard (app/page.tsx) — a Home link
+  // would be a duplicate, so the nav shrinks to My picks + Leaderboard.
+  // Server-only component, so calling isLocked() here is fine.
+  const links = isLocked() ? LINKS.filter((l) => l.key !== "home") : LINKS;
+
   return (
     <header className="pt-5 pb-3 pr-14 flex items-center justify-between gap-3">
       <span className="eyebrow truncate min-w-0 flex-1">{context}</span>
       <nav className="flex items-center gap-3 shrink-0">
-        {LINKS.filter((l) => l.key !== current).map((l) => (
+        {links.filter((l) => l.key !== current).map((l) => (
           <Link
             key={l.key}
             href={l.href}
