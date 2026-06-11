@@ -147,6 +147,9 @@
 /* flag-icons renders a 4:3 span. We round + frame it so flags read as chips. */
 .flag {
   display: inline-block;
+  /* Center with adjacent text in inline flow (e.g. the "Root for 🏴 Team"
+     verdict line). No-op inside flex rows, which center via items-center. */
+  vertical-align: middle;
   width: 1.6rem;
   height: 1.2rem;
   border-radius: 3px;
