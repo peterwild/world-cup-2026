@@ -41,7 +41,15 @@ export interface Leaderboard {
   hasResults: boolean;
 }
 
-export function computeLeaderboard(): Leaderboard {
+/**
+ * @param winProbById Optional player-id → P(win pool) from the cached Monte
+ *   Carlo odds (lib/odds). When present it breaks ties that survive the
+ *   tiebreaker, so a deadlock falls to whoever the sim favors before name.
+ *   Absent (pre-lock, no odds yet) the sort behaves as before.
+ */
+export function computeLeaderboard(
+  winProbById?: Map<string, number>,
+): Leaderboard {
   // Normalize every stored draft through cascadeTrim before we judge or score
   // it — a pick only counts if it's still validly reachable given the player's
   // earlier picks, so an inconsistent/legacy row can't mis-score. (All live
@@ -65,7 +73,8 @@ export function computeLeaderboard(): Leaderboard {
     spiritTeamId: e.draft.spiritTeamId,
   }));
 
-  // Rank by total desc, then closest tiebreaker (nulls last), then name.
+  // Rank by total desc, then closest tiebreaker (nulls last), then odds of
+  // winning the pool (desc), then name.
   scored.sort((a, b) => {
     if (b.score.total !== a.score.total) return b.score.total - a.score.total;
     const at = a.tiebreak;
@@ -75,6 +84,9 @@ export function computeLeaderboard(): Leaderboard {
       if (bt === null) return -1;
       return at - bt;
     }
+    const aw = winProbById?.get(a.player.id) ?? 0;
+    const bw = winProbById?.get(b.player.id) ?? 0;
+    if (aw !== bw) return bw - aw;
     return a.player.name.localeCompare(b.player.name);
   });
 

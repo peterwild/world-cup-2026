@@ -27,7 +27,6 @@ const ODDS_KEY = "odds";
 // 4000 (up from the launch 2000): rooting conditions on outcome buckets, so a
 // ~25%-probability draw bucket still needs ~1000 sims behind it.
 const SIMS = 4000;
-const POPULATION = 300;
 /** Rooting horizon: fixtures kicking off within the next 48h (or already live). */
 const WATCH_AHEAD_MS = 48 * 3600 * 1000;
 /** Keep a fixture watched a few hours past kickoff — covers in-play status lag. */
@@ -130,7 +129,6 @@ export function recomputeOdds(force = false): { snapshot: OddsSnapshot; recomput
 
   const sim = simulatePool(entries, actual, {
     sims: SIMS,
-    population: POPULATION,
     seed: inputHash,
     playedGroupMatches: played,
     watch,

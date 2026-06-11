@@ -47,18 +47,17 @@ test("outcomeToDraft produces a complete, valid bracket", () => {
 
 test("a model-consistent bracket beats a reversed one", () => {
   const pool = [smartEntry("smart", 11), dumbEntry("dumb", 12)];
-  const sim = simulatePool(pool, emptyResults(), { sims: 300, population: 50, seed: 1 });
+  const sim = simulatePool(pool, emptyResults(), { sims: 300, seed: 1 });
 
   const smart = sim.entries.find((e) => e.id === "smart")!;
   const dumb = sim.entries.find((e) => e.id === "dumb")!;
   assert.ok(smart.expectedTotal > dumb.expectedTotal, "expected points");
   assert.ok(smart.winProb > dumb.winProb, "win prob");
-  assert.ok(smart.popPercentile > dumb.popPercentile, "population percentile");
 });
 
 test("win and top3 probabilities are coherent", () => {
   const pool = [smartEntry("a", 21), smartEntry("b", 22), dumbEntry("c", 23)];
-  const sim = simulatePool(pool, emptyResults(), { sims: 200, population: 20, seed: 2 });
+  const sim = simulatePool(pool, emptyResults(), { sims: 200, seed: 2 });
 
   const winSum = sim.entries.reduce((s, e) => s + e.winProb, 0);
   assert.ok(Math.abs(winSum - 1) < 1e-9, `win probs sum to 1, got ${winSum}`);
@@ -72,9 +71,7 @@ test("win and top3 probabilities are coherent", () => {
 
 test("team odds: monotone down the rounds, strong > weak, champs sum to 1", () => {
   const sim = simulatePool([smartEntry("x", 31)], emptyResults(), {
-    sims: 300,
-    population: 10,
-    seed: 3,
+    sims: 300,    seed: 3,
   });
   const esp = sim.teams["esp"];
   const hai = sim.teams["hai"] ?? { reach: {}, champion: 0 };
@@ -94,7 +91,7 @@ test("conditioning flows through: known champion forces the pick's win prob up",
   rival.draft.rounds.CHAMPION = ["hai"];
 
   const actual: Results = { ...emptyResults(), roundTeams: { CHAMPION: ["arg"] } };
-  const sim = simulatePool([base, rival], actual, { sims: 200, population: 10, seed: 4 });
+  const sim = simulatePool([base, rival], actual, { sims: 200, seed: 4 });
   const fan = sim.entries.find((e) => e.id === "argFan")!;
   const other = sim.entries.find((e) => e.id === "haiFan")!;
   assert.ok(fan.winProb > other.winProb, "champion-correct entry must be favored");
@@ -103,9 +100,7 @@ test("conditioning flows through: known champion forces the pick's win prob up",
 
 test("spiritPulse: alive → checkpoint round; out when a decided round excludes them; champion", () => {
   const sim = simulatePool([smartEntry("a", 61)], emptyResults(), {
-    sims: 200,
-    population: 10,
-    seed: 6,
+    sims: 200,    seed: 6,
   });
 
   // Pre-tournament: everyone's alive, checkpoint = making the knockouts.
@@ -138,9 +133,7 @@ test("rooting: group fixture outcomes partition the sims, favorite favored", () 
     },
   ];
   const sim = simulatePool([smartEntry("a", 81)], emptyResults(), {
-    sims: 300,
-    population: 10,
-    seed: 8,
+    sims: 300,    seed: 8,
     watch,
   });
   const r = sim.rooting[0];
@@ -174,9 +167,7 @@ test("rooting: knockout fixture — each champion pick needs its team to win", (
     },
   ];
   const sim = simulatePool([espFan, argFan], emptyResults(), {
-    sims: 400,
-    population: 10,
-    seed: 7,
+    sims: 400,    seed: 7,
     watch,
   });
   const r = sim.rooting[0];
@@ -193,11 +184,9 @@ test("rooting: played group matches shift the conditioned odds", () => {
   // Same pool, but reality says South Africa already beat Mexico 3-0. The
   // sims that honor it should drop Mexico's group-win and champion odds.
   const pool = [smartEntry("a", 91)];
-  const before = simulatePool(pool, emptyResults(), { sims: 300, population: 10, seed: 10 });
+  const before = simulatePool(pool, emptyResults(), { sims: 300, seed: 10 });
   const after = simulatePool(pool, emptyResults(), {
-    sims: 300,
-    population: 10,
-    seed: 10,
+    sims: 300,    seed: 10,
     playedGroupMatches: [
       { group: "A", home: "rsa", away: "mex", homeGoals: 3, awayGoals: 0 },
     ],
@@ -214,7 +203,7 @@ test("rooting: played group matches shift the conditioned odds", () => {
 
 test("deterministic: same seed, same numbers", () => {
   const pool = [smartEntry("a", 51), dumbEntry("b", 52)];
-  const s1 = simulatePool(pool, emptyResults(), { sims: 100, population: 20, seed: 9 });
-  const s2 = simulatePool(pool, emptyResults(), { sims: 100, population: 20, seed: 9 });
+  const s1 = simulatePool(pool, emptyResults(), { sims: 100, seed: 9 });
+  const s2 = simulatePool(pool, emptyResults(), { sims: 100, seed: 9 });
   assert.deepEqual(s1, s2);
 });

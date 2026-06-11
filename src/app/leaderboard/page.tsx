@@ -22,20 +22,24 @@ export default async function LeaderboardPage() {
   const meId = await getSessionPlayerId();
   if (!meId) redirect("/");
 
-  const board = computeLeaderboard();
   const groupName = getGroupName();
   const locked = isLocked();
   const lockAt = kvGet<string | null>(KV.lockAt, null);
+
+  // Cached Monte Carlo odds (recomputed by the score cron). Post-lock only,
+  // and gracefully absent until the first recompute lands. Fetched before the
+  // leaderboard so win odds can break ties in the ranking (standings.ts).
+  const odds = locked ? getOdds() : null;
+  const oddsById = new Map((odds?.entries ?? []).map((e) => [e.id, e]));
+
+  const board = computeLeaderboard(
+    new Map((odds?.entries ?? []).map((e) => [e.id, e.winProb])),
+  );
   const hasAiAssisted = board.standings.some((s) => s.aiAssisted);
   const myStanding = board.standings.find((s) => s.player.id === meId);
   const myIncomplete = !locked && !!myStanding && !myStanding.complete;
   const champion = board.championId ? TEAMS_BY_ID[board.championId] : null;
   const payouts = computePayouts(board.potCents);
-
-  // Cached Monte Carlo odds (recomputed by the score cron). Post-lock only,
-  // and gracefully absent until the first recompute lands.
-  const odds = locked ? getOdds() : null;
-  const oddsById = new Map((odds?.entries ?? []).map((e) => [e.id, e]));
   const results = odds ? getResults() : null;
   const myOdds = oddsById.get(meId);
   const rooting = currentRooting(odds?.rooting ?? []);

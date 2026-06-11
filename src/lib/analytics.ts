@@ -1,16 +1,12 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Monte Carlo pool analytics. Runs many simulated tournaments (simulate.ts),
 // re-scores every entry against each one (scoring.ts), and aggregates:
-//   • per-entry: P(win pool), P(top 3), expected final points, current points,
-//     percentile vs a synthetic population of brackets
+//   • per-entry: P(win pool), P(top 3), expected final points, current points
 //   • per-team: P(reach each round), P(champion) — feeds the heartbreak meter
 //     (spirit teams) and the rooting views
 //
-// Pure — callers fetch entries/results and decide caching. Two sim streams:
-//   scoring sims  — conditioned on actual Results (the future from HERE)
-//   population    — UNconditioned sims turned into brackets. They model people
-//     who filled out a bracket before lock; conditioning them would hand them
-//     perfect hindsight on completed groups and poison the percentiles.
+// Pure — callers fetch entries/results and decide caching. The scoring sims are
+// conditioned on actual Results (the future from HERE).
 //
 // "Who should I root for" doesn't re-run the sim per hypothesis — it BUCKETS
 // the scoring sims by each watched fixture's simulated outcome and reads
@@ -19,7 +15,7 @@
 
 import type { GroupId } from "./teams";
 import { KNOCKOUT_ROUNDS, ROUND_SIZE, type KnockoutRound } from "./tournament";
-import { emptyResults, scoreBracket, type Results } from "./scoring";
+import { scoreBracket, type Results } from "./scoring";
 import type { DraftBracket } from "./bracketState";
 import type { PlayedGroupMatch } from "./matches";
 import { mulberry32, simulateTournament, type SimOutcome } from "./simulate";
@@ -41,10 +37,6 @@ export interface EntryOdds {
   expectedTotal: number;
   /** Points already banked against the actual Results. */
   currentTotal: number;
-  /** Percentile of expectedTotal within the synthetic population (0–100). */
-  popPercentile: number;
-  /** Percentile of currentTotal within the synthetic population (0–100). */
-  popPercentileCurrent: number;
 }
 
 export interface TeamOdds {
@@ -94,14 +86,11 @@ export interface PoolSimulation {
   teams: Record<string, TeamOdds>;
   rooting: FixtureRooting[];
   sims: number;
-  population: number;
 }
 
 export interface SimulatePoolOptions {
   /** Conditioned scoring sims. */
   sims?: number;
-  /** Synthetic population size (unconditioned sims-as-brackets). */
-  population?: number;
   seed?: number;
   /** Real played group matches — conditions sims at match granularity. */
   playedGroupMatches?: PlayedGroupMatch[];
@@ -109,8 +98,8 @@ export interface SimulatePoolOptions {
   watch?: WatchedFixture[];
 }
 
-/** A simulated tournament re-read as the bracket of someone who "called it" —
- *  the building block of the synthetic population. */
+/** A simulated tournament re-read as the bracket of someone who "called it".
+ *  Used in tests to synthesize chalk-flavored entries from a sim draw. */
 export function outcomeToDraft(o: SimOutcome): DraftBracket {
   const rounds: Partial<Record<KnockoutRound, string[]>> = {};
   for (const r of ["R16", "QF", "SF", "FINAL", "CHAMPION"] as KnockoutRound[]) {
@@ -133,21 +122,13 @@ export function simulatePool(
   opts: SimulatePoolOptions = {},
 ): PoolSimulation {
   const sims = opts.sims ?? 1000;
-  const population = opts.population ?? 200;
   const seed = opts.seed ?? 20260611;
-
-  // ── Synthetic population: unconditioned brackets (see header) ──
-  const popRng = mulberry32(seed ^ 0x9e3779b9);
-  const popDrafts = Array.from({ length: population }, () =>
-    outcomeToDraft(simulateTournament(emptyResults(), popRng)),
-  );
 
   // ── Accumulators ──
   const n = entries.length;
   const winCredit = new Array<number>(n).fill(0);
   const top3Credit = new Array<number>(n).fill(0);
   const totalSum = new Array<number>(n).fill(0);
-  const popTotalSum = new Array<number>(population).fill(0);
   const reachCounts: Record<string, Partial<Record<KnockoutRound, number>>> = {};
   const champCounts: Record<string, number> = {};
 
@@ -245,28 +226,9 @@ export function simulatePool(
       const credit = bucketCredit[f][oi];
       for (let i = 0; i < n; i++) credit[i] += winShare[i];
     }
-
-    // Population brackets ride along as ghosts (their totals only).
-    for (let p = 0; p < population; p++) {
-      popTotalSum[p] += scoreBracket(popDrafts[p], r).total;
-    }
   }
 
   // ── Aggregate ──
-  const popExpected = popTotalSum.map((t) => t / sims);
-  const popCurrent = popDrafts.map((d) => scoreBracket(d, actual).total);
-
-  const percentile = (value: number, among: number[]): number => {
-    if (among.length === 0) return 50;
-    let below = 0;
-    let equal = 0;
-    for (const x of among) {
-      if (x < value) below++;
-      else if (x === value) equal++;
-    }
-    return (100 * (below + 0.5 * equal)) / among.length;
-  };
-
   const entryOdds: EntryOdds[] = entries.map((e, i) => {
     const expectedTotal = sims > 0 ? totalSum[i] / sims : 0;
     const currentTotal = scoreBracket(e.draft, actual).total;
@@ -277,8 +239,6 @@ export function simulatePool(
       top3Prob: sims > 0 ? top3Credit[i] / sims : 0,
       expectedTotal,
       currentTotal,
-      popPercentile: percentile(expectedTotal, popExpected),
-      popPercentileCurrent: percentile(currentTotal, popCurrent),
     };
   });
 
@@ -308,7 +268,7 @@ export function simulatePool(
     return { fixture: w, outcomes };
   });
 
-  return { entries: entryOdds, teams, rooting, sims, population };
+  return { entries: entryOdds, teams, rooting, sims };
 }
 
 // ── Heartbreak meter ─────────────────────────────────────────────────────────

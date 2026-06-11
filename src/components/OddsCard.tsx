@@ -6,11 +6,6 @@ export function pct(p: number): string {
   return `${Math.round(p * 100)}%`;
 }
 
-/** Percentile flipped to "Top X%" — never claims better than top 1%. */
-function topShare(percentile: number): string {
-  return `Top ${Math.max(1, Math.round(100 - percentile))}%`;
-}
-
 // The Monte Carlo odds card — shared by the leaderboard ("Your odds") and the
 // picks pages. Post-lock only (callers gate); numbers come from the cached
 // snapshot the score cron maintains (lib/odds.ts).
@@ -39,13 +34,11 @@ export function OddsCard({
           <div className="text-lg font-bold tabular-nums">{pct(entry.top3Prob)}</div>
           <div className="eyebrow">cash (top 3)</div>
         </div>
-        <div
-          title="Where this bracket is on track to finish among a population of computer-generated brackets — the world beyond this pool."
-        >
+        <div title="Projected final score — the mean total this bracket lands on across every simulated tournament.">
           <div className="text-lg font-bold tabular-nums">
-            {topShare(entry.popPercentile)}
+            {Math.round(entry.expectedTotal)}
           </div>
-          <div className="eyebrow">of global brackets</div>
+          <div className="eyebrow">expected points</div>
         </div>
       </div>
     </section>
