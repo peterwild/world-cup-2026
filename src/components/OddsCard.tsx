@@ -25,8 +25,11 @@ export function OddsCard({
   whose: string;
 }) {
   return (
-    <section className="mt-3 card-surface rounded-xl p-3 border border-border">
-      <div className="eyebrow mb-2">📊 {whose}</div>
+    <section
+      className="mt-3 card-surface rounded-xl p-3 border border-border"
+      title={`Odds powered by a ${sims.toLocaleString()}-run Monte Carlo simulation. Updated live as games are played.`}
+    >
+      <div className="eyebrow mb-2">📊 {whose} · updated live</div>
       <div className="grid grid-cols-3 gap-2 text-center">
         <div>
           <div className="text-lg font-bold tabular-nums">{pct(entry.winProb)}</div>
@@ -45,10 +48,6 @@ export function OddsCard({
           <div className="eyebrow">of global brackets</div>
         </div>
       </div>
-      <p className="mt-2 text-xs text-muted-foreground">
-        Odds powered by a {sims.toLocaleString()}-run Monte Carlo simulation.
-        Updated after every game.
-      </p>
     </section>
   );
 }

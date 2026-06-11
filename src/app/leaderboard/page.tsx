@@ -127,7 +127,7 @@ export default async function LeaderboardPage() {
       {odds && myOdds && rooting.games.length > 0 && (
         <RootingCard
           games={rooting.games}
-          later={rooting.later}
+          laterGames={rooting.laterGames}
           meId={meId}
           baselineWin={myOdds.winProb}
           spiritTeamId={myStanding?.spiritTeamId ?? null}

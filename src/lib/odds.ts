@@ -87,19 +87,22 @@ function watchedFixtures(now = Date.now()): WatchedFixture[] {
 }
 
 /** The rooting entries worth showing right now: live games plus kickoffs in
- *  the next ~26h; the rest collapse to a "+N more" count. Time-dependent, so
- *  it lives here — component render must stay pure. */
+ *  the next ~26h; the rest land in a collapsed "more games" disclosure.
+ *  Time-dependent, so it lives here — component render must stay pure. */
 const SHOW_AHEAD_MS = 26 * 3600 * 1000;
 export function currentRooting(rooting: FixtureRooting[]): {
   games: FixtureRooting[];
-  later: number;
+  laterGames: FixtureRooting[];
 } {
   const now = Date.now();
-  const games = rooting.filter((r) => {
+  const games: FixtureRooting[] = [];
+  const laterGames: FixtureRooting[] = [];
+  for (const r of rooting) {
     const live = r.fixture.status === "IN_PLAY" || r.fixture.status === "PAUSED";
-    return live || Date.parse(r.fixture.kickoff) < now + SHOW_AHEAD_MS;
-  });
-  return { games, later: rooting.length - games.length };
+    const soon = live || Date.parse(r.fixture.kickoff) < now + SHOW_AHEAD_MS;
+    (soon ? games : laterGames).push(r);
+  }
+  return { games, laterGames };
 }
 
 /** Re-run the sim and cache it; no-op when inputs are unchanged (unless
