@@ -60,7 +60,6 @@ export default async function PlayerBracketPage({
         <OddsCard
           entry={theirOdds}
           sims={odds.sims}
-          population={odds.population}
           whose={`${firstName}'s odds`}
         />
       )}

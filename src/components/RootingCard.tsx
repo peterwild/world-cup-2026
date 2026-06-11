@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { TEAMS_BY_ID } from "@/lib/teams";
 import type { FixtureRooting, RootingOutcome } from "@/lib/analytics";
 import { Flag } from "@/components/Flag";
@@ -20,8 +21,9 @@ function kickoffLabel(iso: string, status: string): string {
   return `${t} ET`;
 }
 
-function signedPct(d: number): string {
-  return `${d >= 0 ? "+" : ""}${(d * 100).toFixed(1)}%`;
+/** "9.0%" / "11.4%" — always one decimal so both sides of the arrow match. */
+function pct1(p: number): string {
+  return `${(p * 100).toFixed(1)}%`;
 }
 
 export function RootingCard({
@@ -30,7 +32,6 @@ export function RootingCard({
   meId,
   baselineWin,
   spiritTeamId,
-  sims,
 }: {
   /** Pre-filtered to the display window — see currentRooting() in lib/odds.ts
    *  (render must stay pure, so the Date.now() cut happens in the caller). */
@@ -38,10 +39,9 @@ export function RootingCard({
   /** Watched fixtures beyond the window — shown as a "+N more" line. */
   later: number;
   meId: string;
-  /** Your current P(win pool) — deltas are measured against this. */
+  /** Your current P(win pool) — the "from" side of the odds arrow. */
   baselineWin: number;
   spiritTeamId: string | null;
-  sims: number;
 }) {
   if (games.length === 0) return null;
 
@@ -63,36 +63,54 @@ export function RootingCard({
             if (!worst || o.winProb[meId] < worst.winProb[meId]) worst = o;
           }
           const spread = best && worst ? best.winProb[meId] - worst.winProb[meId] : 0;
-          const delta = best ? best.winProb[meId] - baselineWin : 0;
 
           const spiritInvolved =
             spiritTeamId === g.fixture.home || spiritTeamId === g.fixture.away;
           const spiritWinKey = spiritTeamId === g.fixture.home ? "home" : "away";
-          const spiritName = spiritTeamId
-            ? (TEAMS_BY_ID[spiritTeamId]?.name ?? "")
-            : "";
+          const spiritTeam = spiritTeamId ? TEAMS_BY_ID[spiritTeamId] : null;
 
-          let verdict: string;
-          let showDelta = false;
+          // The verdict line. The team you should root for is the headline:
+          // flag + bold name, with the heart commentary tucked in parentheses.
+          let verdict: ReactNode;
+          let showOdds = false;
           if (!best || spread < MEANINGFUL) {
-            verdict = spiritInvolved
-              ? `Root for ${spiritName} — no points at stake, pure 💗`
-              : "Barely moves your odds — enjoy the game 🍿";
+            verdict =
+              spiritInvolved && spiritTeam ? (
+                <>
+                  Root for <Flag code={spiritTeam.flag} />{" "}
+                  <strong className="text-foreground">{spiritTeam.name}</strong>{" "}
+                  <span>(💗 nothing at stake — pure spirit)</span>
+                </>
+              ) : (
+                <>Barely moves your odds — enjoy the game 🍿</>
+              );
           } else {
-            const target =
-              best.outcome === "draw"
-                ? "a draw"
-                : best.outcome === "home"
-                  ? home.name
-                  : away.name;
-            verdict = `Root for ${target}`;
+            const team =
+              best.outcome === "home" ? home : best.outcome === "away" ? away : null;
+            let heart: ReactNode = null;
             if (spiritInvolved) {
-              verdict +=
-                best.outcome === spiritWinKey
-                  ? " — heart and bracket agree 💗"
-                  : ` 💔 (your heart says ${spiritName})`;
+              heart =
+                best.outcome === spiritWinKey ? (
+                  <span> (💗 heart and bracket agree)</span>
+                ) : (
+                  <span> (💔 hurts your spirit team)</span>
+                );
             }
-            showDelta = true;
+            verdict = (
+              <>
+                Root for{" "}
+                {team ? (
+                  <>
+                    <Flag code={team.flag} />{" "}
+                    <strong className="text-foreground">{team.name}</strong>
+                  </>
+                ) : (
+                  <strong className="text-foreground">a draw</strong>
+                )}
+                {heart}
+              </>
+            );
+            showOdds = true;
           }
 
           return (
@@ -111,15 +129,28 @@ export function RootingCard({
               </div>
               <div className="mt-0.5 flex items-center justify-between gap-2 text-xs">
                 <span className="text-muted-foreground">{verdict}</span>
-                {showDelta && (
+                {showOdds && best && (
                   <span
-                    className="tabular-nums font-semibold whitespace-nowrap"
-                    title={`Your win odds if it happens, vs ${signedPct(
-                      (worst?.winProb[meId] ?? baselineWin) - baselineWin,
-                    )} in the worst case`}
-                    style={{ color: delta >= 0 ? "var(--pitch)" : "var(--destructive)" }}
+                    className="text-right whitespace-nowrap tabular-nums"
+                    title={`Your odds to win the pool if you get this result — vs ${pct1(
+                      worst?.winProb[meId] ?? baselineWin,
+                    )} if the worst result lands instead.`}
                   >
-                    {signedPct(delta)} win odds
+                    <span className="text-muted-foreground">
+                      {pct1(baselineWin)} →{" "}
+                    </span>
+                    <span
+                      className="font-semibold"
+                      style={{
+                        color:
+                          best.winProb[meId] >= baselineWin
+                            ? "var(--pitch)"
+                            : "var(--destructive)",
+                      }}
+                    >
+                      {pct1(best.winProb[meId])}
+                    </span>
+                    <span className="block eyebrow">your win odds</span>
                   </span>
                 )}
               </div>
@@ -129,12 +160,12 @@ export function RootingCard({
       </div>
       {later > 0 && (
         <p className="mt-2 text-xs text-muted-foreground">
-          + {later} more game{later === 1 ? "" : "s"} the day after.
+          + {later} more game{later === 1 ? "" : "s"} the next day.
         </p>
       )}
       <p className="mt-2 text-xs text-muted-foreground">
-        Each game&apos;s best result for YOUR bracket, from the same{" "}
-        {sims.toLocaleString()} simulations as your odds.
+        Each game&apos;s best result for YOUR bracket, from the same odds
+        simulation.
       </p>
     </section>
   );

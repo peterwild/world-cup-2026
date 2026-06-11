@@ -90,7 +90,6 @@ export default async function PicksPage() {
             <OddsCard
               entry={myOdds}
               sims={odds.sims}
-              population={odds.population}
               whose="Your odds"
             />
           )}

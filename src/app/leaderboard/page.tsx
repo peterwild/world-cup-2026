@@ -118,7 +118,6 @@ export default async function LeaderboardPage() {
         <OddsCard
           entry={myOdds}
           sims={odds.sims}
-          population={odds.population}
           whose="Your odds"
         />
       )}
@@ -132,7 +131,6 @@ export default async function LeaderboardPage() {
           meId={meId}
           baselineWin={myOdds.winProb}
           spiritTeamId={myStanding?.spiritTeamId ?? null}
-          sims={odds.sims}
         />
       )}
 
@@ -182,9 +180,10 @@ export default async function LeaderboardPage() {
           </p>
         )}
         {odds && (
-          <p className="text-xs text-muted-foreground text-center pb-1">
-            💗💓💔 = spirit team&apos;s pulse · % = odds to win the pool
-          </p>
+          <div className="text-xs text-muted-foreground text-center pb-1 space-y-0.5">
+            <p>Spirit team: 💗 favored to advance · 💓 sweating it · 💔 out</p>
+            <p>% = that player&apos;s odds to win the pool</p>
+          </div>
         )}
         {board.standings.map((s) => {
           const isMe = s.player.id === meId;

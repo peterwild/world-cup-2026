@@ -17,12 +17,10 @@ function topShare(percentile: number): string {
 export function OddsCard({
   entry,
   sims,
-  population,
   whose,
 }: {
   entry: EntryOdds;
   sims: number;
-  population: number;
   /** Card title, e.g. "Your odds" / "Dejan's odds". */
   whose: string;
 }) {
@@ -38,21 +36,18 @@ export function OddsCard({
           <div className="text-lg font-bold tabular-nums">{pct(entry.top3Prob)}</div>
           <div className="eyebrow">cash (top 3)</div>
         </div>
-        <div>
+        <div
+          title="Where this bracket is on track to finish among a population of computer-generated brackets — the world beyond this pool."
+        >
           <div className="text-lg font-bold tabular-nums">
             {topShare(entry.popPercentile)}
           </div>
-          <div className="eyebrow">of all brackets*</div>
+          <div className="eyebrow">of global brackets</div>
         </div>
       </div>
       <p className="mt-2 text-xs text-muted-foreground">
-        *vs the world, not just this pool: on track to finish in the{" "}
-        {topShare(entry.popPercentile)} of {population} computer-generated
-        brackets.
-      </p>
-      <p className="mt-1 text-xs text-muted-foreground">
-        All three numbers come from {sims.toLocaleString()} simulations of the
-        rest of the tournament and update as results come in.
+        Odds powered by a {sims.toLocaleString()}-run Monte Carlo simulation.
+        Updated after every game.
       </p>
     </section>
   );
