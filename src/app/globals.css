@@ -162,6 +162,11 @@
   height: 1.65rem;
   border-radius: 4px;
 }
+.flag-sm {
+  width: 1.05rem;
+  height: 0.8rem;
+  border-radius: 2px;
+}
 
 /* ── Team row (tap-to-advance) ─────────────────────────────────────────────── */
 .team-row {

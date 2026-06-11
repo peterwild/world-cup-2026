@@ -196,9 +196,8 @@ export default async function LeaderboardPage() {
             results && odds && s.spiritTeamId && !s.spiritChampion
               ? spiritPulse(s.spiritTeamId, odds.teams, results)
               : null;
-          const spiritName = s.spiritTeamId
-            ? (TEAMS_BY_ID[s.spiritTeamId]?.name ?? s.spiritTeamId)
-            : "";
+          const spiritTeam = s.spiritTeamId ? TEAMS_BY_ID[s.spiritTeamId] : null;
+          const spiritName = spiritTeam?.name ?? s.spiritTeamId ?? "";
           // Champion pick is a bracket secret until lock — only surface it once
           // everyone's brackets are viewable.
           const championTeam =
@@ -213,7 +212,7 @@ export default async function LeaderboardPage() {
               <span className="w-6 text-center font-bold tabular-nums text-muted-foreground">
                 {s.rank}
               </span>
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 space-y-0.5">
                 <div className="font-semibold text-sm flex items-center gap-1.5">
                   <span className="truncate">{s.player.name}</span>
                   {isMe && <span className="eyebrow">you</span>}
@@ -243,10 +242,12 @@ export default async function LeaderboardPage() {
                     read like a badge about the player, not their team. */}
                 {pulse && (
                   <div
-                    className="text-xs text-muted-foreground"
+                    className="text-xs text-muted-foreground flex items-center gap-1"
                     title={`Spirit team ${pulseSentence(pulse, spiritName)}`}
                   >
-                    Spirit: {pulseEmoji(pulse)} {spiritName}
+                    <span>Spirit: {pulseEmoji(pulse)}</span>
+                    {spiritTeam && <Flag code={spiritTeam.flag} sm />}
+                    <span className="truncate">{spiritName}</span>
                   </div>
                 )}
               </div>
