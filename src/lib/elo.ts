@@ -35,11 +35,11 @@ export const ELO: Record<string, number> = {
   // Group I
   fra: 2063, irq: 1607, nor: 1914, sen: 1860,
   // Group J
-  alg: 1760, arg: 2115, aut: 1830, jor: 1680,
+  alg: 1772, arg: 2115, aut: 1830, jor: 1680,
   // Group K
-  col: 1982, cod: 1652, por: 1986, uzb: 1714,
+  col: 1982, cod: 1652, por: 1989, uzb: 1714,
   // Group L
-  cro: 1912, eng: 2021, gha: 1510, pan: 1730,
+  cro: 1912, eng: 2024, gha: 1510, pan: 1730,
 };
 
 export function eloOf(teamId: string): number {
