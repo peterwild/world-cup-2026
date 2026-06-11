@@ -5,7 +5,7 @@
 //   node --import ./scripts/ts-ext-resolver.mjs scripts/poll-scores.mjs [--dry-run|--print-groups]
 //
 // Env: FOOTBALL_DATA_KEY (required), SITE_URL + ADMIN_KEY (required to push).
-import { deriveResults, groupsFromMatches } from "../src/lib/footballData.ts";
+import { deriveMatches, deriveResults, groupsFromMatches } from "../src/lib/footballData.ts";
 import { GROUP_IDS, TEAMS, TEAMS_BY_ID } from "../src/lib/teams.ts";
 
 const KEY = process.env.FOOTBALL_DATA_KEY;
@@ -114,5 +114,17 @@ const push = await fetch(`${SITE}/api/admin/results`, {
   headers: { "Content-Type": "application/json", "x-admin-key": ADMIN },
   body: JSON.stringify(results),
 });
-console.log("push:", push.status, await push.text());
-if (!push.ok) process.exit(1);
+console.log("push results:", push.status, await push.text());
+
+// Match-level feed (played group matches + upcoming fixtures) — feeds the
+// sim's mid-group conditioning and the "who to root for" view. Same response
+// body, zero extra football-data calls.
+const { feed } = deriveMatches(matches);
+console.log(`feed: ${feed.played.length} played group matches, ${feed.upcoming.length} upcoming fixtures`);
+const pushFeed = await fetch(`${SITE}/api/admin/matches`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json", "x-admin-key": ADMIN },
+  body: JSON.stringify(feed),
+});
+console.log("push matches:", pushFeed.status, await pushFeed.text());
+if (!push.ok || !pushFeed.ok) process.exit(1);

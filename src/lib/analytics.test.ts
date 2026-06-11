@@ -4,7 +4,13 @@ import { GROUP_IDS, TEAMS } from "./teams.ts";
 import { emptyResults, type Results } from "./scoring.ts";
 import { bracketComplete } from "./bracketState.ts";
 import { mulberry32, simulateTournament } from "./simulate.ts";
-import { outcomeToDraft, simulatePool, spiritPulse, type PoolEntry } from "./analytics.ts";
+import {
+  outcomeToDraft,
+  simulatePool,
+  spiritPulse,
+  type PoolEntry,
+  type WatchedFixture,
+} from "./analytics.ts";
 
 /** A "smart" bracket: one model draw — internally consistent, chalk-flavored. */
 function smartEntry(id: string, seed: number): PoolEntry {
@@ -118,6 +124,92 @@ test("spiritPulse: alive → checkpoint round; out when a decided round excludes
   const partial: Results = { ...emptyResults(), roundTeams: { R32: done.roundTeams.R32 } };
   const mid = spiritPulse(done.roundTeams.R32![0], sim.teams, partial);
   assert.ok(mid.state === "alive" && mid.nextRound === "R16");
+});
+
+test("rooting: group fixture outcomes partition the sims, favorite favored", () => {
+  const watch: WatchedFixture[] = [
+    {
+      id: "mex|rsa|2026-06-11T19:00:00Z",
+      home: "mex",
+      away: "rsa",
+      kind: "group",
+      kickoff: "2026-06-11T19:00:00Z",
+      status: "SCHEDULED",
+    },
+  ];
+  const sim = simulatePool([smartEntry("a", 81)], emptyResults(), {
+    sims: 300,
+    population: 10,
+    seed: 8,
+    watch,
+  });
+  const r = sim.rooting[0];
+  assert.equal(r.fixture.id, watch[0].id);
+  // Every sim plays every group match → outcome probs partition exactly.
+  const probSum = r.outcomes.reduce((s, o) => s + o.prob, 0);
+  assert.ok(Math.abs(probSum - 1) < 1e-9, `outcome probs sum to 1, got ${probSum}`);
+  const p = Object.fromEntries(r.outcomes.map((o) => [o.outcome, o.prob]));
+  assert.ok(p.home! > p.away!, "Mexico (favorite) wins more sims than South Africa");
+  for (const o of r.outcomes) {
+    assert.ok(o.winProb["a"] >= 0 && o.winProb["a"] <= 1);
+  }
+});
+
+test("rooting: knockout fixture — each champion pick needs its team to win", () => {
+  // Identical brackets except the champion pick; watch a hypothetical
+  // esp-vs-arg final. Conditional on esp winning it, the esp pick banks +20
+  // and must beat its twin (and vice versa).
+  const espFan = smartEntry("espFan", 71);
+  espFan.draft.rounds.CHAMPION = ["esp"];
+  const argFan = smartEntry("argFan", 71);
+  argFan.draft.rounds.CHAMPION = ["arg"];
+  const watch: WatchedFixture[] = [
+    {
+      id: "esp|arg|2026-07-19T19:00:00Z",
+      home: "esp",
+      away: "arg",
+      kind: "FINAL",
+      kickoff: "2026-07-19T19:00:00Z",
+      status: "TIMED",
+    },
+  ];
+  const sim = simulatePool([espFan, argFan], emptyResults(), {
+    sims: 400,
+    population: 10,
+    seed: 7,
+    watch,
+  });
+  const r = sim.rooting[0];
+  const home = r.outcomes.find((o) => o.outcome === "home")!; // esp champion
+  const away = r.outcomes.find((o) => o.outcome === "away")!; // arg champion
+  assert.ok(home.prob > 0 && away.prob > 0, "both outcomes occur in sims");
+  assert.ok(home.winProb["espFan"] > 0.9, "esp champion ⇒ espFan wins");
+  assert.ok(away.winProb["argFan"] > 0.9, "arg champion ⇒ argFan wins");
+  assert.ok(home.winProb["espFan"] > away.winProb["espFan"]);
+  assert.ok(away.winProb["argFan"] > home.winProb["argFan"]);
+});
+
+test("rooting: played group matches shift the conditioned odds", () => {
+  // Same pool, but reality says South Africa already beat Mexico 3-0. The
+  // sims that honor it should drop Mexico's group-win and champion odds.
+  const pool = [smartEntry("a", 91)];
+  const before = simulatePool(pool, emptyResults(), { sims: 300, population: 10, seed: 10 });
+  const after = simulatePool(pool, emptyResults(), {
+    sims: 300,
+    population: 10,
+    seed: 10,
+    playedGroupMatches: [
+      { group: "A", home: "rsa", away: "mex", homeGoals: 3, awayGoals: 0 },
+    ],
+  });
+  assert.ok(
+    (after.teams["mex"]?.reach.R32 ?? 0) < (before.teams["mex"]?.reach.R32 ?? 0),
+    "a real 0-3 loss must hurt Mexico's advance odds",
+  );
+  assert.ok(
+    (after.teams["rsa"]?.reach.R32 ?? 0) > (before.teams["rsa"]?.reach.R32 ?? 0),
+    "and help South Africa's",
+  );
 });
 
 test("deterministic: same seed, same numbers", () => {

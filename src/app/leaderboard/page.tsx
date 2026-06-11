@@ -5,13 +5,14 @@ import { getGroupName, getResults } from "@/lib/repo";
 import { isLocked, kvGet, KV } from "@/lib/db";
 import { computeLeaderboard, formatUsd } from "@/lib/standings";
 import { PAYOUT_SPLIT, computePayouts } from "@/lib/tournament";
-import { getOdds } from "@/lib/odds";
+import { currentRooting, getOdds } from "@/lib/odds";
 import { spiritPulse } from "@/lib/analytics";
 import { TEAMS_BY_ID } from "@/lib/teams";
 import { Flag } from "@/components/Flag";
 import { TopNav } from "@/components/TopNav";
 import { Countdown } from "@/components/Countdown";
 import { OddsCard, pct } from "@/components/OddsCard";
+import { RootingCard } from "@/components/RootingCard";
 import { pulseEmoji, pulseSentence } from "@/components/SpiritPulse";
 
 export const runtime = "nodejs";
@@ -37,6 +38,7 @@ export default async function LeaderboardPage() {
   const oddsById = new Map((odds?.entries ?? []).map((e) => [e.id, e]));
   const results = odds ? getResults() : null;
   const myOdds = oddsById.get(meId);
+  const rooting = currentRooting(odds?.rooting ?? []);
   const placeLabels = ["1st", "2nd", "3rd"];
   const placeColors = [
     { soft: "var(--podium-gold-soft)", line: "var(--podium-gold)" },
@@ -118,6 +120,19 @@ export default async function LeaderboardPage() {
           sims={odds.sims}
           population={odds.population}
           whose="Your odds"
+        />
+      )}
+
+      {/* Who to root for — today's games, conditioned per result. (Older
+          cached snapshots predate `rooting`, hence the fallback.) */}
+      {odds && myOdds && rooting.games.length > 0 && (
+        <RootingCard
+          games={rooting.games}
+          later={rooting.later}
+          meId={meId}
+          baselineWin={myOdds.winProb}
+          spiritTeamId={myStanding?.spiritTeamId ?? null}
+          sims={odds.sims}
         />
       )}
 

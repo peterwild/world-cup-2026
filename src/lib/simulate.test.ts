@@ -95,6 +95,36 @@ test("conditioning: actual finalGoals honored", () => {
   assert.equal(o.results.finalGoals, 5);
 });
 
+test("conditioning: fixed group matches are baked into every sim", () => {
+  // Wild reality: South Africa won all three group games 5-0. The fixed scores
+  // (9 pts, +15 GD) must make them group winners in EVERY simulated table.
+  // Mixed orientations on purpose — both key directions get exercised.
+  const fixedGroupMatches = [
+    { group: "A" as const, home: "rsa", away: "mex", homeGoals: 5, awayGoals: 0 },
+    { group: "A" as const, home: "cze", away: "rsa", homeGoals: 0, awayGoals: 5 },
+    { group: "A" as const, home: "rsa", away: "kor", homeGoals: 5, awayGoals: 0 },
+  ];
+  const rng = mulberry32(11);
+  for (let i = 0; i < 50; i++) {
+    const o = simulateTournament(emptyResults(), rng, { fixedGroupMatches });
+    assert.equal(o.groupOrder.A[0], "rsa");
+    assert.equal(o.results.groupResults.A!.first, "rsa");
+  }
+});
+
+test("recordGroupMatch fires once per group match", () => {
+  let count = 0;
+  const pairs = new Set<string>();
+  simulateTournament(emptyResults(), mulberry32(12), {
+    recordGroupMatch: (h, a) => {
+      count++;
+      pairs.add(`${h}|${a}`);
+    },
+  });
+  assert.equal(count, 72); // 12 groups × C(4,2) matches
+  assert.equal(pairs.size, 72); // every pairing distinct
+});
+
 test("strong teams advance far more often than weak ones", () => {
   const rng = mulberry32(99);
   let espR16 = 0;

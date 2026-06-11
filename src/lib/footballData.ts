@@ -8,14 +8,17 @@
 // is an estimate; it converges to correct once groups finish.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { GROUP_IDS, TEAMS } from "./teams";
+import { GROUP_IDS, TEAMS, type GroupId } from "./teams";
 import type { KnockoutRound } from "./tournament";
 import type { Results } from "./scoring";
+import type { MatchFeed } from "./matches";
 
 export interface FdMatch {
   stage: string;
   group: string | null;
   status: string; // SCHEDULED | IN_PLAY | PAUSED | FINISHED | ...
+  /** ISO kickoff time (optional: older test fixtures omit it). */
+  utcDate?: string;
   // Names are null for not-yet-determined teams (TBD knockout fixtures).
   homeTeam: { name: string | null };
   awayTeam: { name: string | null };
@@ -63,7 +66,7 @@ export function nameToId(name: string | null | undefined): string | null {
   return ALIASES[n] ?? BY_NAME[n] ?? null;
 }
 
-const STAGE_TO_ROUND: Record<string, KnockoutRound> = {
+export const STAGE_TO_ROUND: Record<string, KnockoutRound> = {
   LAST_32: "R32",
   LAST_16: "R16",
   QUARTER_FINALS: "QF",
@@ -95,6 +98,48 @@ export function groupsFromMatches(matches: FdMatch[]): {
   const groups: Record<string, string[]> = {};
   for (const g of Object.keys(sets)) groups[g] = [...sets[g]].sort();
   return { groups, unmapped: [...unmapped] };
+}
+
+/** Statuses that mean "this fixture is still to be decided". */
+const UPCOMING_STATUSES = new Set(["SCHEDULED", "TIMED", "IN_PLAY", "PAUSED"]);
+
+/** Match-level feed for the box (lib/matches.ts): finished group matches (sim
+ *  conditioning) + undecided fixtures with both teams known (rooting views). */
+export function deriveMatches(matches: FdMatch[]): { feed: MatchFeed; unmapped: string[] } {
+  const unmapped = new Set<string>();
+  const id = (name: string | null): string | null => {
+    const x = nameToId(name);
+    if (name && !x) unmapped.add(name);
+    return x;
+  };
+
+  const feed: MatchFeed = { played: [], upcoming: [], fetchedAt: new Date().toISOString() };
+  for (const m of matches) {
+    const h = id(m.homeTeam.name);
+    const a = id(m.awayTeam.name);
+    if (!h || !a) continue; // TBD fixture — nothing to condition or root on
+
+    if (m.stage === "GROUP_STAGE" && m.group && m.status === "FINISHED") {
+      feed.played.push({
+        group: m.group.replace("GROUP_", "") as GroupId,
+        home: h,
+        away: a,
+        homeGoals: m.score.fullTime.home ?? 0,
+        awayGoals: m.score.fullTime.away ?? 0,
+      });
+    } else if (UPCOMING_STATUSES.has(m.status) && m.utcDate) {
+      feed.upcoming.push({
+        home: h,
+        away: a,
+        utcDate: m.utcDate,
+        stage: m.stage,
+        group: m.group ? (m.group.replace("GROUP_", "") as GroupId) : null,
+        status: m.status,
+      });
+    }
+  }
+  feed.upcoming.sort((x, y) => x.utcDate.localeCompare(y.utcDate));
+  return { feed, unmapped: [...unmapped] };
 }
 
 export function deriveResults(matches: FdMatch[]): { results: Results; unmapped: string[] } {

@@ -21,6 +21,7 @@
 import { GROUP_IDS, teamsInGroup, type GroupId } from "./teams";
 import { KNOCKOUT_ROUNDS, ROUND_SIZE } from "./tournament";
 import type { Results } from "./scoring";
+import type { PlayedGroupMatch } from "./matches";
 import {
   eloOf,
   sampleScore,
@@ -64,6 +65,17 @@ export interface SimOutcome {
   bestThirds: string[];
 }
 
+export interface SimulateOptions {
+  /** Already-played group matches: their real scores are baked into every
+   *  simulated table instead of being re-sampled — mid-group conditioning at
+   *  match granularity (finer than Results' completed-groups-only). */
+  fixedGroupMatches?: PlayedGroupMatch[];
+  /** Called once per group match per sim (fixed or sampled), in the sim's
+   *  home/away orientation. Lets analytics bucket sims by a watched fixture's
+   *  outcome — "who to root for" without re-running the sim per hypothesis. */
+  recordGroupMatch?: (home: string, away: string, homeGoals: number, awayGoals: number) => void;
+}
+
 // ── Group stage ──────────────────────────────────────────────────────────────
 
 interface GroupRow {
@@ -72,12 +84,15 @@ interface GroupRow {
   gf: number;
 }
 
-/** Simulate one group's 6-match round-robin; return finishing order + table. */
+/** Simulate one group's 6-match round-robin; return finishing order + table.
+ *  Matches present in `fixed` (keyed "home|away") use their real score. */
 function simulateGroup(
   group: GroupId,
   known: { first: string; second: string } | undefined,
   rng: () => number,
   rating: (id: string) => number,
+  fixed: Map<string, { homeGoals: number; awayGoals: number }>,
+  record?: SimulateOptions["recordGroupMatch"],
 ): { order: string[]; table: Record<string, GroupRow> } {
   const ids = teamsInGroup(group).map((t) => t.id);
   const table: Record<string, GroupRow> = Object.fromEntries(
@@ -85,7 +100,15 @@ function simulateGroup(
   );
   for (let i = 0; i < ids.length; i++) {
     for (let j = i + 1; j < ids.length; j++) {
-      const { homeGoals, awayGoals } = sampleScore(rating(ids[i]), rating(ids[j]), rng);
+      // Honor a real result in either orientation; sample the rest.
+      let homeGoals: number;
+      let awayGoals: number;
+      const fwd = fixed.get(`${ids[i]}|${ids[j]}`);
+      const rev = fwd ? undefined : fixed.get(`${ids[j]}|${ids[i]}`);
+      if (fwd) ({ homeGoals, awayGoals } = fwd);
+      else if (rev) ({ homeGoals: awayGoals, awayGoals: homeGoals } = rev);
+      else ({ homeGoals, awayGoals } = sampleScore(rating(ids[i]), rating(ids[j]), rng));
+      record?.(ids[i], ids[j], homeGoals, awayGoals);
       const h = table[ids[i]];
       const a = table[ids[j]];
       h.gf += homeGoals;
@@ -148,7 +171,11 @@ function advanceRound(
 
 // ── Full tournament ──────────────────────────────────────────────────────────
 
-export function simulateTournament(actual: Results, rng: () => number): SimOutcome {
+export function simulateTournament(
+  actual: Results,
+  rng: () => number,
+  opts: SimulateOptions = {},
+): SimOutcome {
   // Per-sim effective ratings: base Elo + N(0, σ) noise. Models rating
   // uncertainty + tournament-to-tournament form; without it the favorite's
   // championship odds compound to ~2x what real markets price.
@@ -158,11 +185,24 @@ export function simulateTournament(actual: Results, rng: () => number): SimOutco
   }
   const rating = (id: string) => effective[id] ?? eloOf(id);
 
+  // Real played-match scores, keyed "home|away" in feed orientation.
+  const fixed = new Map<string, { homeGoals: number; awayGoals: number }>();
+  for (const m of opts.fixedGroupMatches ?? []) {
+    fixed.set(`${m.home}|${m.away}`, { homeGoals: m.homeGoals, awayGoals: m.awayGoals });
+  }
+
   // Group stage
   const groupOrder = {} as Record<GroupId, string[]>;
   const tables: Record<string, GroupRow> = {};
   for (const g of GROUP_IDS) {
-    const { order, table } = simulateGroup(g, actual.groupResults[g], rng, rating);
+    const { order, table } = simulateGroup(
+      g,
+      actual.groupResults[g],
+      rng,
+      rating,
+      fixed,
+      opts.recordGroupMatch,
+    );
     groupOrder[g] = order;
     Object.assign(tables, table);
   }

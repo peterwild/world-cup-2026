@@ -12,14 +12,16 @@
 //     who filled out a bracket before lock; conditioning them would hand them
 //     perfect hindsight on completed groups and poison the percentiles.
 //
-// "Who should I root for" = run this twice with a hypothesis baked into the
-// conditioned Results (e.g. team X reaches R16) and diff the win probs.
+// "Who should I root for" doesn't re-run the sim per hypothesis — it BUCKETS
+// the scoring sims by each watched fixture's simulated outcome and reads
+// conditional win probs straight out of the buckets. One pass, every game.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { GroupId } from "./teams";
 import { KNOCKOUT_ROUNDS, ROUND_SIZE, type KnockoutRound } from "./tournament";
 import { emptyResults, scoreBracket, type Results } from "./scoring";
 import type { DraftBracket } from "./bracketState";
+import type { PlayedGroupMatch } from "./matches";
 import { mulberry32, simulateTournament, type SimOutcome } from "./simulate";
 
 export interface PoolEntry {
@@ -52,9 +54,45 @@ export interface TeamOdds {
   champion: number;
 }
 
+// ── Rooting interest ─────────────────────────────────────────────────────────
+
+/** An undecided real fixture worth conditioning on. */
+export interface WatchedFixture {
+  /** Stable id: "home|away|utcDate". */
+  id: string;
+  home: string;
+  away: string;
+  /** "group" for group-stage games, else the knockout round the match is in. */
+  kind: "group" | KnockoutRound;
+  /** ISO kickoff. */
+  kickoff: string;
+  /** SCHEDULED | TIMED | IN_PLAY | PAUSED — for the "live now" badge. */
+  status: string;
+}
+
+export type RootingOutcomeKey = "home" | "draw" | "away";
+
+export interface RootingOutcome {
+  outcome: RootingOutcomeKey;
+  /** P(this outcome) across the scoring sims. */
+  prob: number;
+  /** entry id → P(win the pool | this outcome). */
+  winProb: Record<string, number>;
+}
+
+export interface FixtureRooting {
+  fixture: WatchedFixture;
+  /** Outcomes that occurred in ≥1 sim. Group games: home/draw/away. Knockout
+   *  games: home/away, conditioned on which team reaches the next round (sims
+   *  where both or neither do are uninformative and excluded — probs may not
+   *  sum to 1). */
+  outcomes: RootingOutcome[];
+}
+
 export interface PoolSimulation {
   entries: EntryOdds[];
   teams: Record<string, TeamOdds>;
+  rooting: FixtureRooting[];
   sims: number;
   population: number;
 }
@@ -65,6 +103,10 @@ export interface SimulatePoolOptions {
   /** Synthetic population size (unconditioned sims-as-brackets). */
   population?: number;
   seed?: number;
+  /** Real played group matches — conditions sims at match granularity. */
+  playedGroupMatches?: PlayedGroupMatch[];
+  /** Undecided fixtures to compute rooting interest for. */
+  watch?: WatchedFixture[];
 }
 
 /** A simulated tournament re-read as the bracket of someone who "called it" —
@@ -109,9 +151,40 @@ export function simulatePool(
   const reachCounts: Record<string, Partial<Record<KnockoutRound, number>>> = {};
   const champCounts: Record<string, number> = {};
 
+  // ── Rooting setup: watch lookup, per-sim recorder, outcome buckets ──
+  const watch = opts.watch ?? [];
+  const OUTCOME_INDEX: Record<RootingOutcomeKey, number> = { home: 0, draw: 1, away: 2 };
+  const NEXT_ROUND: Partial<Record<KnockoutRound, KnockoutRound>> = {
+    R32: "R16", R16: "QF", QF: "SF", SF: "FINAL", FINAL: "CHAMPION",
+  };
+  // Group fixtures are matched by team pair in either orientation (the sim's
+  // round-robin doesn't track real home/away).
+  const groupWatch = new Map<string, { f: number; flip: boolean }>();
+  watch.forEach((w, f) => {
+    if (w.kind !== "group") return;
+    groupWatch.set(`${w.home}|${w.away}`, { f, flip: false });
+    groupWatch.set(`${w.away}|${w.home}`, { f, flip: true });
+  });
+  const simGroupOutcome = new Array<RootingOutcomeKey | undefined>(watch.length);
+  const recordGroupMatch = groupWatch.size
+    ? (home: string, away: string, hg: number, ag: number) => {
+        const hit = groupWatch.get(`${home}|${away}`);
+        if (!hit) return;
+        simGroupOutcome[hit.f] =
+          hg === ag ? "draw" : (hg > ag) !== hit.flip ? "home" : "away";
+      }
+    : undefined;
+  const bucketCount = watch.map(() => [0, 0, 0]);
+  const bucketCredit = watch.map(() => [
+    new Float64Array(n), new Float64Array(n), new Float64Array(n),
+  ]);
+  const winShare = new Array<number>(n); // per-sim scratch: this sim's win split
+
+  const simOpts = { fixedGroupMatches: opts.playedGroupMatches, recordGroupMatch };
   const rng = mulberry32(seed);
   for (let s = 0; s < sims; s++) {
-    const outcome = simulateTournament(actual, rng);
+    simGroupOutcome.fill(undefined);
+    const outcome = simulateTournament(actual, rng, simOpts);
     const r = outcome.results;
 
     // Team reach/champion tallies
@@ -144,13 +217,34 @@ export function simulatePool(
       }
       return a.jitter - b.jitter;
     });
+    winShare.fill(0);
     if (scored.length > 0) {
       const lead = scored[0];
       const winners = scored.filter((x) => x.total === lead.total && x.tb === lead.tb);
-      for (const w of winners) winCredit[w.idx] += 1 / winners.length;
+      for (const w of winners) winShare[w.idx] = 1 / winners.length;
       for (const x of scored.slice(0, 3)) top3Credit[x.idx] += 1;
     }
+    for (let i = 0; i < n; i++) winCredit[i] += winShare[i];
     for (const x of scored) totalSum[x.idx] += x.total;
+
+    // Rooting buckets: file this sim's win shares under each watched fixture's
+    // simulated outcome.
+    for (let f = 0; f < watch.length; f++) {
+      const w = watch[f];
+      let key = simGroupOutcome[f];
+      if (w.kind !== "group") {
+        const next = NEXT_ROUND[w.kind];
+        const reached = next ? (r.roundTeams[next] ?? []) : [];
+        const h = reached.includes(w.home);
+        const a = reached.includes(w.away);
+        if (h !== a) key = h ? "home" : "away"; // both/neither → uninformative
+      }
+      if (!key) continue;
+      const oi = OUTCOME_INDEX[key];
+      bucketCount[f][oi]++;
+      const credit = bucketCredit[f][oi];
+      for (let i = 0; i < n; i++) credit[i] += winShare[i];
+    }
 
     // Population brackets ride along as ghosts (their totals only).
     for (let p = 0; p < population; p++) {
@@ -197,7 +291,24 @@ export function simulatePool(
     teams[id] = { reach, champion: (champCounts[id] ?? 0) / sims };
   }
 
-  return { entries: entryOdds, teams, sims, population };
+  const rooting: FixtureRooting[] = watch.map((w, f) => {
+    const keys: RootingOutcomeKey[] =
+      w.kind === "group" ? ["home", "draw", "away"] : ["home", "away"];
+    const outcomes: RootingOutcome[] = [];
+    for (const key of keys) {
+      const oi = OUTCOME_INDEX[key];
+      const count = bucketCount[f][oi];
+      if (count === 0) continue; // never happened in any sim
+      const winProb: Record<string, number> = {};
+      entries.forEach((e, i) => {
+        winProb[e.id] = bucketCredit[f][oi][i] / count;
+      });
+      outcomes.push({ outcome: key, prob: count / sims, winProb });
+    }
+    return { fixture: w, outcomes };
+  });
+
+  return { entries: entryOdds, teams, rooting, sims, population };
 }
 
 // ── Heartbreak meter ─────────────────────────────────────────────────────────

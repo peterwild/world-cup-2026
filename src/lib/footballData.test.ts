@@ -1,6 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { deriveResults, groupsFromMatches, nameToId, type FdMatch } from "./footballData.ts";
+import {
+  deriveMatches,
+  deriveResults,
+  groupsFromMatches,
+  nameToId,
+  type FdMatch,
+} from "./footballData.ts";
 
 test("nameToId handles aliases and our own names", () => {
   assert.equal(nameToId("Korea Republic"), "kor");
@@ -78,6 +84,49 @@ test("knockout reaches + champion from FINAL", () => {
 test("reports unmapped names instead of guessing", () => {
   const { unmapped } = deriveResults([group("Mexico", "Madeupistan", 1, 0)]);
   assert.deepEqual(unmapped, ["Madeupistan"]);
+});
+
+test("deriveMatches: played group matches vs upcoming fixtures, kickoff-sorted", () => {
+  const matches: FdMatch[] = [
+    { ...group("Mexico", "Czechia", 2, 0), utcDate: "2026-06-11T19:00:00Z" }, // finished → played
+    {
+      ...group("South Korea", "South Africa", 0, 0),
+      status: "TIMED",
+      utcDate: "2026-06-13T01:00:00Z",
+    },
+    {
+      // knockout fixture with both teams known → upcoming, even mid-game
+      stage: "LAST_16",
+      group: null,
+      status: "IN_PLAY",
+      utcDate: "2026-06-12T19:00:00Z",
+      homeTeam: { name: "Brazil" },
+      awayTeam: { name: "Spain" },
+      score: { winner: null, fullTime: { home: 1, away: 1 } },
+    },
+    {
+      // TBD knockout fixture → skipped entirely
+      stage: "LAST_32",
+      group: null,
+      status: "SCHEDULED",
+      utcDate: "2026-06-28T19:00:00Z",
+      homeTeam: { name: null },
+      awayTeam: { name: null },
+      score: { winner: null, fullTime: { home: null, away: null } },
+    },
+  ];
+  const { feed, unmapped } = deriveMatches(matches);
+  assert.deepEqual(unmapped, []);
+  assert.deepEqual(feed.played, [
+    { group: "A", home: "mex", away: "cze", homeGoals: 2, awayGoals: 0 },
+  ]);
+  // sorted by kickoff: the in-play R16 game (12th) before the group game (13th)
+  assert.deepEqual(
+    feed.upcoming.map((f) => `${f.home}|${f.away}`),
+    ["bra|esp", "kor|rsa"],
+  );
+  assert.equal(feed.upcoming[0].stage, "LAST_16");
+  assert.equal(feed.upcoming[1].group, "A");
 });
 
 test("TBD fixtures with null team names don't crash or get counted", () => {
