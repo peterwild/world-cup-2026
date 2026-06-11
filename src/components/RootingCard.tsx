@@ -31,11 +31,14 @@ function GameRow({
   meId,
   baselineWin,
   spiritTeamId,
+  possessive,
 }: {
   g: FixtureRooting;
   meId: string;
   baselineWin: number;
   spiritTeamId: string | null;
+  /** "your" on your own surfaces, "Dejan's" when scouting someone else. */
+  possessive: string;
 }) {
   const home = TEAMS_BY_ID[g.fixture.home];
   const away = TEAMS_BY_ID[g.fixture.away];
@@ -69,7 +72,7 @@ function GameRow({
           <span>(💗 nothing at stake — pure spirit)</span>
         </>
       ) : (
-        <>Barely moves your odds — enjoy the game 🍿</>
+        <>Barely moves {possessive} odds — enjoy the game 🍿</>
       );
   } else {
     const team =
@@ -80,7 +83,7 @@ function GameRow({
         best.outcome === spiritWinKey ? (
           <span> (💗 heart and bracket agree)</span>
         ) : (
-          <span> (💔 hurts your spirit team)</span>
+          <span> (💔 hurts {possessive} spirit team)</span>
         );
     }
     verdict = (
@@ -119,7 +122,7 @@ function GameRow({
         {showOdds && best && (
           <span
             className="text-right whitespace-nowrap tabular-nums"
-            title={`Your odds to win the pool if you get this result — vs ${pct1(
+            title={`Odds to win the pool if this result lands — vs ${pct1(
               worst?.winProb[meId] ?? baselineWin,
             )} if the worst result lands instead.`}
           >
@@ -137,7 +140,7 @@ function GameRow({
             >
               {pct1(best.winProb[meId])}
             </span>
-            <span className="block eyebrow">your win odds</span>
+            <span className="block eyebrow">{possessive} win odds</span>
           </span>
         )}
       </div>
@@ -151,6 +154,7 @@ export function RootingCard({
   meId,
   baselineWin,
   spiritTeamId,
+  whose,
 }: {
   /** Pre-filtered to the display window — see currentRooting() in lib/odds.ts
    *  (render must stay pure, so the Date.now() cut happens in the caller). */
@@ -158,15 +162,20 @@ export function RootingCard({
   /** Watched fixtures beyond the window — collapsed behind a disclosure. */
   laterGames: FixtureRooting[];
   meId: string;
-  /** Your current P(win pool) — the "from" side of the odds arrow. */
+  /** That player's current P(win pool) — the "from" side of the odds arrow. */
   baselineWin: number;
   spiritTeamId: string | null;
+  /** First name when scouting someone else's page; omitted = second person. */
+  whose?: string;
 }) {
   if (games.length === 0) return null;
+  const possessive = whose ? `${whose}'s` : "your";
 
   return (
     <section className="mt-3 card-surface rounded-xl p-3 border border-border">
-      <div className="eyebrow mb-2">🎯 Who to root for in upcoming games</div>
+      <div className="eyebrow mb-2">
+        🎯 {whose ? `Who ${whose} should root for` : "Who to root for in upcoming games"}
+      </div>
       <div className="space-y-3">
         {games.map((g) => (
           <GameRow
@@ -175,6 +184,7 @@ export function RootingCard({
             meId={meId}
             baselineWin={baselineWin}
             spiritTeamId={spiritTeamId}
+            possessive={possessive}
           />
         ))}
       </div>
@@ -193,6 +203,7 @@ export function RootingCard({
                 meId={meId}
                 baselineWin={baselineWin}
                 spiritTeamId={spiritTeamId}
+                possessive={possessive}
               />
             ))}
           </div>

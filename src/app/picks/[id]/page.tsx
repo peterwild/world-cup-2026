@@ -3,12 +3,13 @@ import { getSessionPlayerId } from "@/lib/session";
 import { getDraft, getPlayer, getResults } from "@/lib/repo";
 import { isLocked } from "@/lib/db";
 import { hasAnyResults } from "@/lib/pickStatus";
-import { getOdds } from "@/lib/odds";
+import { currentRooting, getOdds } from "@/lib/odds";
 import { spiritPulse } from "@/lib/analytics";
 import { TopNav } from "@/components/TopNav";
 import { BracketView } from "@/components/BracketView";
 import { AiAssistedBadge } from "@/components/AiAssistedBadge";
 import { OddsCard } from "@/components/OddsCard";
+import { RootingCard } from "@/components/RootingCard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -41,6 +42,7 @@ export default async function PlayerBracketPage({
   // once the cron has cached a snapshot.
   const odds = getOdds();
   const theirOdds = odds?.entries.find((e) => e.id === id);
+  const rooting = currentRooting(odds?.rooting ?? []);
   const pulse =
     odds && draft.spiritTeamId ? spiritPulse(draft.spiritTeamId, odds.teams, results) : null;
 
@@ -61,6 +63,18 @@ export default async function PlayerBracketPage({
           entry={theirOdds}
           sims={odds.sims}
           whose={`${firstName}'s odds`}
+        />
+      )}
+      {/* The scouting report: same conditional buckets, their bracket's
+          rooting interest instead of yours. */}
+      {odds && theirOdds && rooting.games.length > 0 && (
+        <RootingCard
+          games={rooting.games}
+          laterGames={rooting.laterGames}
+          meId={id}
+          baselineWin={theirOdds.winProb}
+          spiritTeamId={draft.spiritTeamId}
+          whose={firstName}
         />
       )}
       <BracketView
