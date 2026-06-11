@@ -192,8 +192,8 @@ export function RootingCard({
         // Native disclosure — works in a server component, no JS.
         <details className="mt-2">
           <summary className="text-xs text-muted-foreground cursor-pointer select-none">
-            {laterGames.length} more game{laterGames.length === 1 ? "" : "s"} the
-            next day
+            {laterGames.length} more game{laterGames.length === 1 ? "" : "s"} in
+            the next day
           </summary>
           <div className="mt-3 space-y-3">
             {laterGames.map((g) => (
