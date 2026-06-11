@@ -199,6 +199,10 @@ export default async function LeaderboardPage() {
           const spiritName = s.spiritTeamId
             ? (TEAMS_BY_ID[s.spiritTeamId]?.name ?? s.spiritTeamId)
             : "";
+          // Champion pick is a bracket secret until lock — only surface it once
+          // everyone's brackets are viewable.
+          const championTeam =
+            locked && s.championPick ? TEAMS_BY_ID[s.championPick] : null;
           const rowClass = "flex items-center gap-3 rounded-xl px-3 py-3 border";
           const rowStyle = {
             background: isMe ? "var(--pitch-soft)" : "var(--card)",
@@ -219,6 +223,16 @@ export default async function LeaderboardPage() {
                     <span title="Called the champion">👑</span>
                   )}
                 </div>
+                {championTeam && (
+                  <div
+                    className="text-xs text-muted-foreground flex items-center gap-1"
+                    title={`Picked ${championTeam.name} to win the cup`}
+                  >
+                    <span>Champion:</span>
+                    <Flag code={championTeam.flag} />
+                    <span className="truncate">{championTeam.name}</span>
+                  </div>
+                )}
                 {board.hasResults && (
                   <div className="text-xs text-muted-foreground">
                     {s.score.groupPoints} group · {s.score.knockoutPoints} knockout

@@ -25,6 +25,8 @@ export interface Standing {
   tiebreak: number | null;
   spiritChampion: boolean;
   spiritTeamId: string | null;
+  /** Team this player picked to win the cup (draft CHAMPION), or null. */
+  championPick: string | null;
   payoutCents: number;
   aiAssisted: boolean;
   complete: boolean;
@@ -71,6 +73,7 @@ export function computeLeaderboard(
     aiAssisted: e.aiAssisted,
     complete: bracketComplete(e.draft),
     spiritTeamId: e.draft.spiritTeamId,
+    championPick: e.draft.rounds.CHAMPION?.[0] ?? null,
   }));
 
   // Rank by total desc, then closest tiebreaker (nulls last), then odds of
@@ -101,6 +104,7 @@ export function computeLeaderboard(
     tiebreak: s.tiebreak,
     spiritChampion: s.score.spiritChampion,
     spiritTeamId: s.spiritTeamId,
+    championPick: s.championPick,
     payoutCents: payouts[i] ?? 0,
     aiAssisted: s.aiAssisted,
     complete: s.complete,
