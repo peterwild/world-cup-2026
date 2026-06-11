@@ -180,10 +180,9 @@ export default async function LeaderboardPage() {
           </p>
         )}
         {odds && (
-          <div className="text-xs text-muted-foreground text-center pb-1 space-y-0.5">
-            <p>Spirit team: 💗 favored to advance · 💓 sweating it · 💔 out</p>
-            <p>% = that player&apos;s odds to win the pool</p>
-          </div>
+          <p className="text-xs text-muted-foreground text-center pb-1">
+            Spirit team: 💗 favored to advance · 💓 sweating it · 💔 out
+          </p>
         )}
         {board.standings.map((s) => {
           const isMe = s.player.id === meId;
