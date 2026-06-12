@@ -263,6 +263,15 @@
   border-radius: 9999px;
   background: var(--gold);
 }
+/* Finished: a neutral, dimmed static dot — the match is over. */
+.done-dot {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: var(--muted-foreground);
+  opacity: 0.5;
+}
 /* One-shot pop when a scoreline changes (keyed re-mount in LiveStrip). */
 .score-pop { animation: score-pop 0.5s ease-out; }
 @keyframes score-pop {

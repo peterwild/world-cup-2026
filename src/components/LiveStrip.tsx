@@ -282,22 +282,27 @@ function FinishedRow({
           <Flag code={away.flag} sm />
         </span>
       </div>
-      {/* "Full Time" + who you were pulling for, centered under the score — both
-          marks the game as done and stops the 🎉/💔 from being a lone emoji. */}
-      {v && rootTeam ? (
-        <div
-          className="mt-0.5 flex items-center justify-center flex-wrap gap-1 text-xs"
-          style={{ color: toneColor(v.tone) }}
-        >
-          <span>{v.emoji}</span>
-          <span>Full Time · rooted for</span>
-          <Flag code={rootTeam.flag} sm />
-          <span className="font-medium">{rootTeam.name}</span>
-          <span>· {v.verb}</span>
-        </div>
-      ) : (
-        <div className="mt-0.5 text-center text-xs text-muted-foreground">Full Time</div>
-      )}
+      {/* Centered status + verdict, mirroring the live rows: "Full Time" is the
+          match state (its own line), and who you pulled for is a separate line
+          below it — so the 🎉/💔 isn't a lone, ambiguous emoji. */}
+      <div className="mt-0.5 flex flex-col items-center gap-0.5 text-xs">
+        <span className="flex items-center gap-1.5 text-muted-foreground">
+          <span className="done-dot" aria-hidden />
+          <span>Full Time</span>
+        </span>
+        {v && rootTeam && (
+          <div
+            className="flex items-center justify-center flex-wrap gap-1"
+            style={{ color: toneColor(v.tone) }}
+          >
+            <span>{v.emoji}</span>
+            <span>rooted for</span>
+            <Flag code={rootTeam.flag} sm />
+            <span className="font-medium">{rootTeam.name}</span>
+            <span>· {v.verb}</span>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
