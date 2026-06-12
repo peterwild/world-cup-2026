@@ -122,7 +122,9 @@ function liveCall(
   return { root, spiritOnly: false, emoji, tone, heart: "" };
 }
 
-/** "Root for 🇰🇷 KOR" / "Root for 🤝 a draw" — the headline for a live game. */
+/** "Rooting for 🇰🇷 KOR" / "Rooting for 🤝 a draw" — the headline for a live
+ *  game. Present progressive (vs. the upcoming card's imperative "Root for"):
+ *  the match is on now, so it reads as a shared, in-the-moment rooting state. */
 function RootFor({ call }: { call: LiveCall }) {
   if (call.root === null) {
     return <span className="font-medium" style={{ color: toneColor(call.tone) }}>{call.emoji} no stake — enjoy</span>;
@@ -131,7 +133,7 @@ function RootFor({ call }: { call: LiveCall }) {
   return (
     <span className="font-medium inline-flex items-center gap-1" style={{ color: toneColor(call.tone) }}>
       <span>{call.emoji}</span>
-      <span>Root for</span>
+      <span>Rooting for</span>
       {team ? (
         <>
           <Flag code={team.flag} sm />
