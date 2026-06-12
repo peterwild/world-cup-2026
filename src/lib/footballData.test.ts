@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  deriveLive,
   deriveMatches,
   deriveResults,
   groupsFromMatches,
@@ -142,4 +143,111 @@ test("TBD fixtures with null team names don't crash or get counted", () => {
   const { results, unmapped } = deriveResults([tbd]);
   assert.deepEqual(unmapped, []); // nulls aren't "unmapped"
   assert.equal(results.roundTeams.R32, undefined); // no teams recorded
+});
+
+test("deriveLive: in-play games with running score + minute", () => {
+  const now = new Date("2026-06-12T18:00:00Z"); // 14:00 ET, June 12
+  const matches: FdMatch[] = [
+    {
+      stage: "GROUP_STAGE",
+      group: "GROUP_A",
+      status: "IN_PLAY",
+      utcDate: "2026-06-12T17:00:00Z",
+      minute: 63,
+      id: 101,
+      homeTeam: { name: "Mexico" },
+      awayTeam: { name: "Czechia" },
+      score: { winner: null, fullTime: { home: 2, away: 1 } },
+    },
+    {
+      stage: "GROUP_STAGE",
+      group: "GROUP_B",
+      status: "PAUSED", // halftime
+      utcDate: "2026-06-12T17:30:00Z",
+      id: 102,
+      homeTeam: { name: "Brazil" },
+      awayTeam: { name: "Spain" },
+      score: { winner: null, fullTime: { home: 0, away: 0 } },
+    },
+  ];
+  const { view } = deriveLive(matches, now);
+  assert.equal(view.live.length, 2);
+  assert.deepEqual(
+    { ...view.live[0] },
+    {
+      id: 101,
+      home: "mex",
+      away: "cze",
+      homeGoals: 2,
+      awayGoals: 1,
+      minute: 63,
+      status: "IN_PLAY",
+      stage: "GROUP_STAGE",
+      group: "A",
+      utcDate: "2026-06-12T17:00:00Z",
+    },
+  );
+  assert.equal(view.live[1].status, "PAUSED");
+  assert.equal(view.live[1].minute, null); // no minute on the feed → null, not 0
+});
+
+test("deriveLive: finishedToday respects the ET calendar day", () => {
+  const now = new Date("2026-06-12T18:00:00Z"); // June 12 ET
+  const fin = (home: string, away: string, h: number, a: number, utcDate: string): FdMatch => ({
+    stage: "GROUP_STAGE",
+    group: "GROUP_A",
+    status: "FINISHED",
+    utcDate,
+    homeTeam: { name: home },
+    awayTeam: { name: away },
+    score: { winner: h > a ? "HOME_TEAM" : a > h ? "AWAY_TEAM" : "DRAW", fullTime: { home: h, away: a } },
+  });
+  const matches: FdMatch[] = [
+    fin("Mexico", "Czechia", 3, 1, "2026-06-12T16:00:00Z"), // 12:00 ET June 12 → today
+    fin("Brazil", "Spain", 0, 0, "2026-06-12T01:00:00Z"), // 21:00 ET June 11 → yesterday, excluded
+  ];
+  const { view } = deriveLive(matches, now);
+  assert.equal(view.live.length, 0);
+  assert.equal(view.finishedToday.length, 1);
+  assert.deepEqual(
+    { home: view.finishedToday[0].home, away: view.finishedToday[0].away, winner: view.finishedToday[0].winner },
+    { home: "mex", away: "cze", winner: "home" },
+  );
+});
+
+test("deriveLive: nextKickoff is the soonest future fixture; TBD live games skipped", () => {
+  const now = new Date("2026-06-12T18:00:00Z");
+  const matches: FdMatch[] = [
+    {
+      stage: "GROUP_STAGE",
+      group: "GROUP_C",
+      status: "TIMED",
+      utcDate: "2026-06-13T01:00:00Z",
+      homeTeam: { name: "South Korea" },
+      awayTeam: { name: "South Africa" },
+      score: { winner: null, fullTime: { home: null, away: null } },
+    },
+    {
+      stage: "GROUP_STAGE",
+      group: "GROUP_D",
+      status: "SCHEDULED",
+      utcDate: "2026-06-12T22:00:00Z", // sooner
+      homeTeam: { name: "France" },
+      awayTeam: { name: "Haiti" },
+      score: { winner: null, fullTime: { home: null, away: null } },
+    },
+    {
+      // TBD knockout in progress (shouldn't happen, but null teams must not crash)
+      stage: "LAST_16",
+      group: null,
+      status: "IN_PLAY",
+      utcDate: "2026-06-12T17:00:00Z",
+      homeTeam: { name: null },
+      awayTeam: { name: null },
+      score: { winner: null, fullTime: { home: 1, away: 0 } },
+    },
+  ];
+  const { view } = deriveLive(matches, now);
+  assert.equal(view.live.length, 0); // TBD live game skipped
+  assert.equal(view.nextKickoff, "2026-06-12T22:00:00Z");
 });

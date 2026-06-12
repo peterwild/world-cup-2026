@@ -241,6 +241,36 @@
   40% { transform: scale(1); opacity: 1; }
 }
 
+/* ── Live scores strip ─────────────────────────────────────────────────────── */
+/* Pulsing "live" dot. Opacity/transform only — no blur layers (iOS WebKit). */
+.live-dot {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: var(--destructive);
+  animation: live-pulse 1.6s ease-in-out infinite;
+}
+@keyframes live-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(0.7); opacity: 0.45; }
+}
+/* One-shot pop when a scoreline changes (keyed re-mount in LiveStrip). */
+.score-pop { animation: score-pop 0.5s ease-out; }
+@keyframes score-pop {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.35); }
+  100% { transform: scale(1); }
+}
+/* A brief celebratory glow on the card when YOUR team scores. Box-shadow only,
+   no backdrop-filter (kept off fixed UI per the iOS compositor lessons). */
+.scored-glow { animation: scored-glow 1.4s ease-out; }
+@keyframes scored-glow {
+  0% { box-shadow: 0 0 0 0 var(--pitch-soft); }
+  30% { box-shadow: 0 0 0 4px var(--pitch-soft); }
+  100% { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0); }
+}
+
 /* ── Lightweight markdown rendering inside AI chat bubbles ──────────────────── */
 .md > :first-child { margin-top: 0; }
 .md > :last-child { margin-bottom: 0; }
@@ -265,4 +295,5 @@
 @media (prefers-reduced-motion: reduce) {
   .team-row { transition: none; }
   .typing-dots span { animation: none; }
+  .live-dot, .score-pop, .scored-glow { animation: none; }
 }

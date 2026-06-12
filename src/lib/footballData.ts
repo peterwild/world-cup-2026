@@ -14,11 +14,15 @@ import type { Results } from "./scoring";
 import type { MatchFeed } from "./matches";
 
 export interface FdMatch {
+  /** football-data match id — stable per fixture, used as a render key. */
+  id?: number;
   stage: string;
   group: string | null;
   status: string; // SCHEDULED | IN_PLAY | PAUSED | FINISHED | ...
   /** ISO kickoff time (optional: older test fixtures omit it). */
   utcDate?: string;
+  /** Current match minute during IN_PLAY. Absent on some tiers — treat as optional. */
+  minute?: number | null;
   // Names are null for not-yet-determined teams (TBD knockout fixtures).
   homeTeam: { name: string | null };
   awayTeam: { name: string | null };
@@ -226,4 +230,126 @@ export function deriveResults(matches: FdMatch[]): { results: Results; unmapped:
   }
 
   return { results: { groupResults, roundTeams, finalGoals }, unmapped: [...unmapped] };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Live view — the fast read layer behind the leaderboard's live strip. Unlike
+// the cron's MatchFeed (slow, authoritative results/odds), this is fetched by
+// the box on a short interval (lib/liveScores.ts) and carries the running score
+// so people can watch games — and see whether the team their bracket wants is
+// winning. Pure + testable; the box wraps it in caching.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface LiveGame {
+  id: number | null;
+  home: string; // team id
+  away: string; // team id
+  homeGoals: number;
+  awayGoals: number;
+  /** Current match minute, or null when the feed doesn't expose it. */
+  minute: number | null;
+  status: "IN_PLAY" | "PAUSED"; // PAUSED = halftime
+  stage: string;
+  group: GroupId | null;
+  utcDate: string | null;
+}
+
+export interface FinishedGame {
+  id: number | null;
+  home: string;
+  away: string;
+  homeGoals: number;
+  awayGoals: number;
+  winner: "home" | "away" | "draw";
+  stage: string;
+  group: GroupId | null;
+  utcDate: string;
+}
+
+export interface LiveView {
+  /** Games in progress right now (includes halftime). */
+  live: LiveGame[];
+  /** Finished games from the current ET calendar day — kept on screen so the
+   *  day's results stay visible until midnight ET. */
+  finishedToday: FinishedGame[];
+  /** ISO kickoff of the soonest future fixture — drives the box's poll cadence. */
+  nextKickoff: string | null;
+  fetchedAt: string;
+}
+
+/** YYYY-MM-DD in US Eastern — the pool's wall-clock day for "finished today". */
+function etDay(d: Date): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d);
+}
+
+const LIVE_STATUSES = new Set(["IN_PLAY", "PAUSED"]);
+const SCHEDULED_STATUSES = new Set(["SCHEDULED", "TIMED"]);
+
+export function deriveLive(matches: FdMatch[], now: Date = new Date()): {
+  view: LiveView;
+  unmapped: string[];
+} {
+  const unmapped = new Set<string>();
+  const id = (name: string | null): string | null => {
+    const x = nameToId(name);
+    if (name && !x) unmapped.add(name);
+    return x;
+  };
+
+  const today = etDay(now);
+  const nowMs = now.getTime();
+  const live: LiveGame[] = [];
+  const finishedToday: FinishedGame[] = [];
+  let nextKickoff: string | null = null;
+
+  for (const m of matches) {
+    const h = id(m.homeTeam.name);
+    const a = id(m.awayTeam.name);
+
+    if (LIVE_STATUSES.has(m.status) && h && a) {
+      live.push({
+        id: m.id ?? null,
+        home: h,
+        away: a,
+        homeGoals: m.score.fullTime.home ?? 0,
+        awayGoals: m.score.fullTime.away ?? 0,
+        minute: m.minute ?? null,
+        status: m.status as "IN_PLAY" | "PAUSED",
+        stage: m.stage,
+        group: m.group ? (m.group.replace("GROUP_", "") as GroupId) : null,
+        utcDate: m.utcDate ?? null,
+      });
+    } else if (m.status === "FINISHED" && h && a && m.utcDate && etDay(new Date(m.utcDate)) === today) {
+      const hg = m.score.fullTime.home ?? 0;
+      const ag = m.score.fullTime.away ?? 0;
+      const winner =
+        m.score.winner === "HOME_TEAM" ? "home" : m.score.winner === "AWAY_TEAM" ? "away" : m.score.winner === "DRAW" ? "draw" : hg > ag ? "home" : ag > hg ? "away" : "draw";
+      finishedToday.push({
+        id: m.id ?? null,
+        home: h,
+        away: a,
+        homeGoals: hg,
+        awayGoals: ag,
+        winner,
+        stage: m.stage,
+        group: m.group ? (m.group.replace("GROUP_", "") as GroupId) : null,
+        utcDate: m.utcDate,
+      });
+    } else if (SCHEDULED_STATUSES.has(m.status) && m.utcDate && Date.parse(m.utcDate) > nowMs) {
+      if (!nextKickoff || m.utcDate < nextKickoff) nextKickoff = m.utcDate;
+    }
+  }
+
+  live.sort((x, y) => (x.utcDate ?? "").localeCompare(y.utcDate ?? ""));
+  finishedToday.sort((x, y) => x.utcDate.localeCompare(y.utcDate));
+
+  return {
+    view: { live, finishedToday, nextKickoff, fetchedAt: now.toISOString() },
+    unmapped: [...unmapped],
+  };
 }

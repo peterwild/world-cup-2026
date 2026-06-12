@@ -13,6 +13,7 @@ import { TopNav } from "@/components/TopNav";
 import { Countdown } from "@/components/Countdown";
 import { OddsCard, pct } from "@/components/OddsCard";
 import { RootingCard } from "@/components/RootingCard";
+import { LiveStrip } from "@/components/LiveStrip";
 import { pulseEmoji, pulseSentence } from "@/components/SpiritPulse";
 
 export const runtime = "nodejs";
@@ -43,6 +44,25 @@ export default async function LeaderboardPage() {
   const results = odds ? getResults() : null;
   const myOdds = oddsById.get(meId);
   const rooting = currentRooting(odds?.rooting ?? []);
+
+  // Per-game rooting outcome for ME, keyed by real home-away orientation, for
+  // the live strip's overlay. Reuses the odds snapshot's rooting buckets (same
+  // best-outcome + meaningful-spread logic as RootingCard); only games that
+  // actually move my pool odds get an entry — the rest fall back to spirit team.
+  const ROOT_MEANINGFUL = 0.003;
+  const liveRootMap: Record<string, "home" | "away" | "draw"> = {};
+  for (const r of odds?.rooting ?? []) {
+    const mine = r.outcomes.filter((o) => o.winProb[meId] !== undefined);
+    if (mine.length === 0) continue;
+    let best = mine[0];
+    let worst = mine[0];
+    for (const o of mine) {
+      if (o.winProb[meId] > best.winProb[meId]) best = o;
+      if (o.winProb[meId] < worst.winProb[meId]) worst = o;
+    }
+    if (best.winProb[meId] - worst.winProb[meId] < ROOT_MEANINGFUL) continue;
+    liveRootMap[`${r.fixture.home}-${r.fixture.away}`] = best.outcome;
+  }
   const placeLabels = ["1st", "2nd", "3rd"];
   const placeColors = [
     { soft: "var(--podium-gold-soft)", line: "var(--podium-gold)" },
@@ -91,6 +111,10 @@ export default async function LeaderboardPage() {
           </div>
         </div>
       </section>
+
+      {/* Live & today's scores — people come here for the games too. Renders
+          nothing when nothing's live or finished today. */}
+      <LiveStrip rootMap={liveRootMap} spiritTeamId={myStanding?.spiritTeamId ?? null} />
 
       {/* Champion + spirit callouts */}
       {champion && (
