@@ -5,9 +5,19 @@
 //
 // Recompute is triggered by the poll-scores workflow right after it pushes
 // fresh results (see /api/admin/odds). It's cheap to over-trigger: we hash the
-// inputs (results + entry set) and skip the sim when nothing changed. The seed
-// derives from that same hash, so identical states always produce identical
-// odds — no flicker between recomputes — while any new result reshuffles it.
+// inputs (results + entry set + watch window) and skip the sim when nothing
+// changed.
+//
+// Two distinct fingerprints, deliberately:
+//   • inputHash — the SKIP key. Includes the watch window, so a fixture merely
+//     entering the rooting window or flipping to IN_PLAY re-runs the sim and
+//     refreshes the rooting cards.
+//   • oddsSeed — the RNG seed. Derived ONLY from decided results (`actual`), so
+//     the Monte Carlo draw is FIXED across the whole tournament and the headline
+//     championship odds move only when a real result lands — never from the
+//     clock, a kickoff, or a status flip. (Pre-fix the seed was inputHash, so
+//     every 20-min watch-window churn re-rolled all 4000 dice and the odds
+//     visibly jittered with nothing actually decided.)
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { kvGet, kvSet } from "./db";
@@ -24,9 +34,11 @@ import {
 } from "./analytics";
 
 const ODDS_KEY = "odds";
-// 4000 (up from the launch 2000): rooting conditions on outcome buckets, so a
-// ~25%-probability draw bucket still needs ~1000 sims behind it.
-const SIMS = 4000;
+// 10000 (up from 4000): with the seed now fixed off `actual` (see header), the
+// dice no longer re-roll on every recompute, so the only residual movement is
+// real-result signal — but tighter sampling still makes that movement smooth.
+// ~1s on the box (synchronous, blocks the event loop), fine for a 20-min job.
+const SIMS = 10000;
 /** Rooting horizon: fixtures kicking off within the next 48h (or already live). */
 const WATCH_AHEAD_MS = 48 * 3600 * 1000;
 /** Keep a fixture watched a few hours past kickoff — covers in-play status lag. */
@@ -127,9 +139,14 @@ export function recomputeOdds(force = false): { snapshot: OddsSnapshot; recomput
     return { snapshot: cached, recomputed: false };
   }
 
+  // Seed off decided results ONLY — not the entry set, the watch window, or
+  // partial in-play scores — so the dice stay fixed and odds evolve purely as
+  // real results accumulate. Empty `actual` (pre-tournament) → constant seed →
+  // identical odds on every recompute, zero jitter.
+  const oddsSeed = fnv1a(JSON.stringify(actual));
   const sim = simulatePool(entries, actual, {
     sims: SIMS,
-    seed: inputHash,
+    seed: oddsSeed,
     playedGroupMatches: played,
     watch,
   });
