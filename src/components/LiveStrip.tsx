@@ -40,7 +40,7 @@ function pct1(p: number): string {
 }
 
 function minuteLabel(g: LiveGame): string {
-  if (g.status === "PAUSED") return "HT";
+  if (g.status === "PAUSED") return "Halftime";
   if (g.minute != null) return `${g.minute}'`;
   return "LIVE";
 }
@@ -222,7 +222,8 @@ function LiveRow({
           the clock, who to root for, and the odds swing. */}
       <div className="mt-1 flex flex-col items-center gap-0.5 text-xs">
         <span className="flex items-center gap-1.5 text-muted-foreground">
-          <span className="live-dot" aria-hidden />
+          {/* Amber static dot at halftime (paused), pulsing red while in play. */}
+          <span className={g.status === "PAUSED" ? "pause-dot" : "live-dot"} aria-hidden />
           <span className="tabular-nums">{minuteLabel(g)}</span>
         </span>
         <RootFor call={call} />
@@ -273,7 +274,6 @@ function FinishedRow({
         </span>
         <span className="tabular-nums text-muted-foreground whitespace-nowrap text-center">
           {g.homeGoals}–{g.awayGoals}
-          <span className="ml-1 eyebrow">FT</span>
         </span>
         <span className="flex items-center gap-1.5 min-w-0 justify-end text-muted-foreground">
           <span className={`truncate ${g.winner === "away" ? "text-foreground font-medium" : ""}`}>
@@ -282,19 +282,21 @@ function FinishedRow({
           <Flag code={away.flag} sm />
         </span>
       </div>
-      {/* Spell out who you were pulling for + how it went — centered under the
-          score so the 🎉/💔 isn't a lone, ambiguous emoji. */}
-      {v && rootTeam && (
+      {/* "Full Time" + who you were pulling for, centered under the score — both
+          marks the game as done and stops the 🎉/💔 from being a lone emoji. */}
+      {v && rootTeam ? (
         <div
-          className="mt-0.5 flex items-center justify-center gap-1 text-xs"
+          className="mt-0.5 flex items-center justify-center flex-wrap gap-1 text-xs"
           style={{ color: toneColor(v.tone) }}
         >
           <span>{v.emoji}</span>
-          <span>Rooted for</span>
+          <span>Full Time · rooted for</span>
           <Flag code={rootTeam.flag} sm />
           <span className="font-medium">{rootTeam.name}</span>
           <span>· {v.verb}</span>
         </div>
+      ) : (
+        <div className="mt-0.5 text-center text-xs text-muted-foreground">Full Time</div>
       )}
     </div>
   );

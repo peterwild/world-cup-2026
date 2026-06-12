@@ -255,6 +255,14 @@
   0%, 100% { transform: scale(1); opacity: 1; }
   50% { transform: scale(0.7); opacity: 0.45; }
 }
+/* Halftime: a calm, static amber dot — the game's paused, not live (no pulse). */
+.pause-dot {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: var(--gold);
+}
 /* One-shot pop when a scoreline changes (keyed re-mount in LiveStrip). */
 .score-pop { animation: score-pop 0.5s ease-out; }
 @keyframes score-pop {
