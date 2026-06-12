@@ -27,14 +27,17 @@ const TTL_ERROR = 60 * SEC; // transient failure — retry soon, keep last-good
 /** Begin live-cadence polling this far before kickoff. */
 const KICKOFF_LEAD_MS = 30 * 60 * SEC;
 
-const EMPTY: LiveView = { live: [], finishedToday: [], nextKickoff: null, fetchedAt: new Date(0).toISOString() };
+const EMPTY: LiveView = { live: [], finishedToday: [], nextKickoff: null, awaitingKickoff: false, fetchedAt: new Date(0).toISOString() };
 
 let cache: { view: LiveView; expiresAt: number } | null = null;
 let inflight: Promise<LiveView> | null = null;
 
 /** Adaptive cadence from what the latest fetch showed. */
 function ttlFor(view: LiveView): number {
-  if (view.live.length > 0) return TTL_LIVE;
+  // Hot cadence both while a game's live AND in the kickoff-lag window, so a
+  // match that just started (feed still says TIMED) is picked up in seconds
+  // rather than after a 30-min idle nap.
+  if (view.live.length > 0 || view.awaitingKickoff) return TTL_LIVE;
   if (view.nextKickoff && Date.parse(view.nextKickoff) - Date.now() < KICKOFF_LEAD_MS) return TTL_SOON;
   if (view.finishedToday.length > 0) return TTL_RECENT;
   return TTL_IDLE;

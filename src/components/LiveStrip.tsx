@@ -327,7 +327,9 @@ export function LiveStrip({
     let cancelled = false;
 
     function cadence(v: LiveView | null): number {
-      if (v?.live.length) return POLL_LIVE;
+      // Poll fast while live OR awaiting a lagging kickoff — otherwise the strip
+      // sits empty on the box's stale cache through the start of a match.
+      if (v?.live.length || v?.awaitingKickoff) return POLL_LIVE;
       if (v?.nextKickoff && Date.parse(v.nextKickoff) - Date.now() < 30 * 60_000) return POLL_SOON;
       return POLL_IDLE;
     }

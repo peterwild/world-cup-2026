@@ -316,8 +316,18 @@ export interface LiveView {
   finishedToday: FinishedGame[];
   /** ISO kickoff of the soonest future fixture — drives the box's poll cadence. */
   nextKickoff: string | null;
+  /** A scheduled fixture's kickoff time has already passed but the feed hasn't
+   *  flipped it to IN_PLAY yet — the free-tier lag at kickoff. Without this the
+   *  poller sees "nothing live, next game hours away" and idles for 30 min,
+   *  missing the start of the match. When set, keep polling hot so the strip
+   *  picks the game up within seconds of the feed catching up. */
+  awaitingKickoff: boolean;
   fetchedAt: string;
 }
+
+/** A scheduled kickoff this far in the past, still not IN_PLAY, means the feed
+ *  is lagging the real kickoff — treat it as imminent-live for cadence. */
+const KICKOFF_GRACE_MS = 30 * 60 * 1000;
 
 /** YYYY-MM-DD in US Eastern — the pool's wall-clock day for "finished today". */
 function etDay(d: Date): string {
@@ -348,6 +358,7 @@ export function deriveLive(matches: FdMatch[], now: Date = new Date()): {
   const live: LiveGame[] = [];
   const finishedToday: FinishedGame[] = [];
   let nextKickoff: string | null = null;
+  let awaitingKickoff = false;
 
   for (const m of matches) {
     const h = id(m.homeTeam.name);
@@ -382,8 +393,14 @@ export function deriveLive(matches: FdMatch[], now: Date = new Date()): {
         group: m.group ? (m.group.replace("GROUP_", "") as GroupId) : null,
         utcDate: m.utcDate,
       });
-    } else if (SCHEDULED_STATUSES.has(m.status) && m.utcDate && Date.parse(m.utcDate) > nowMs) {
-      if (!nextKickoff || m.utcDate < nextKickoff) nextKickoff = m.utcDate;
+    } else if (SCHEDULED_STATUSES.has(m.status) && m.utcDate) {
+      const koMs = Date.parse(m.utcDate);
+      if (koMs > nowMs) {
+        if (!nextKickoff || m.utcDate < nextKickoff) nextKickoff = m.utcDate;
+      } else if (nowMs - koMs <= KICKOFF_GRACE_MS && h && a) {
+        // Kickoff passed, not IN_PLAY yet, teams known — the feed is lagging.
+        awaitingKickoff = true;
+      }
     }
   }
 
@@ -391,7 +408,7 @@ export function deriveLive(matches: FdMatch[], now: Date = new Date()): {
   finishedToday.sort((x, y) => x.utcDate.localeCompare(y.utcDate));
 
   return {
-    view: { live, finishedToday, nextKickoff, fetchedAt: now.toISOString() },
+    view: { live, finishedToday, nextKickoff, awaitingKickoff, fetchedAt: now.toISOString() },
     unmapped: [...unmapped],
   };
 }

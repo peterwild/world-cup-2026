@@ -250,4 +250,50 @@ test("deriveLive: nextKickoff is the soonest future fixture; TBD live games skip
   const { view } = deriveLive(matches, now);
   assert.equal(view.live.length, 0); // TBD live game skipped
   assert.equal(view.nextKickoff, "2026-06-12T22:00:00Z");
+  assert.equal(view.awaitingKickoff, false);
+});
+
+test("deriveLive: kickoff passed but feed still TIMED → awaitingKickoff (free-tier lag)", () => {
+  const now = new Date("2026-06-12T19:00:30Z"); // 30s past kickoff
+  const matches: FdMatch[] = [
+    {
+      stage: "GROUP_STAGE",
+      group: "GROUP_B",
+      status: "TIMED", // feed hasn't flipped to IN_PLAY yet
+      utcDate: "2026-06-12T19:00:00Z",
+      homeTeam: { name: "Canada" },
+      awayTeam: { name: "Bosnia-Herzegovina" },
+      score: { winner: null, fullTime: { home: null, away: null } },
+    },
+    {
+      stage: "GROUP_STAGE",
+      group: "GROUP_C",
+      status: "TIMED",
+      utcDate: "2026-06-13T01:00:00Z", // next real fixture, hours away
+      homeTeam: { name: "South Korea" },
+      awayTeam: { name: "South Africa" },
+      score: { winner: null, fullTime: { home: null, away: null } },
+    },
+  ];
+  const { view } = deriveLive(matches, now);
+  assert.equal(view.live.length, 0); // not IN_PLAY yet, so not in live[]
+  assert.equal(view.awaitingKickoff, true); // but keep polling hot
+  assert.equal(view.nextKickoff, "2026-06-13T01:00:00Z"); // still future-only
+});
+
+test("deriveLive: long-stale TIMED kickoff is not awaitingKickoff (beyond grace)", () => {
+  const now = new Date("2026-06-12T21:00:00Z"); // 2h past kickoff
+  const matches: FdMatch[] = [
+    {
+      stage: "GROUP_STAGE",
+      group: "GROUP_B",
+      status: "TIMED",
+      utcDate: "2026-06-12T19:00:00Z",
+      homeTeam: { name: "Canada" },
+      awayTeam: { name: "Bosnia-Herzegovina" },
+      score: { winner: null, fullTime: { home: null, away: null } },
+    },
+  ];
+  const { view } = deriveLive(matches, now);
+  assert.equal(view.awaitingKickoff, false);
 });
