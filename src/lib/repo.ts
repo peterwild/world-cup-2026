@@ -6,6 +6,7 @@ import { randomUUID } from "node:crypto";
 import { db, kvGet, kvSet, KV } from "./db";
 import { emptyDraft, bracketComplete, cascadeTrim, type DraftBracket } from "./bracketState";
 import { emptyResults, type Results } from "./scoring";
+import type { GoldenBootEntry } from "./goldenBoot";
 
 export interface Player {
   id: string;
@@ -233,6 +234,68 @@ export function recordAiTurn(
 
 export function getGroupName(): string {
   return kvGet<string>(KV.groupName, "Kitchen Table");
+}
+
+// ── Golden Boot side bet ─────────────────────────────────────────────────────
+// No row = the player hasn't answered the opt-in prompt yet (snooze is purely
+// client-side, so it never writes here). A row means they've decided: 'in' or
+// 'declined'. pick_id is null until an opted-in player commits a player.
+
+interface GoldenBootRow {
+  player_id: string;
+  status: string;
+  pick_id: string | null;
+  paid: number;
+}
+
+function toGoldenBoot(r: GoldenBootRow): GoldenBootEntry {
+  return {
+    playerId: r.player_id,
+    status: r.status === "declined" ? "declined" : "in",
+    pickId: r.pick_id,
+    paid: !!r.paid,
+  };
+}
+
+export function getGoldenBoot(playerId: string): GoldenBootEntry | null {
+  const r = db()
+    .prepare("SELECT player_id, status, pick_id, paid FROM golden_boot WHERE player_id = ?")
+    .get(playerId) as GoldenBootRow | undefined;
+  return r ? toGoldenBoot(r) : null;
+}
+
+/** Opt in or decline. decided_at is sticky (kept on the first answer). Declining
+ *  leaves any existing pick in place but out of the pot — re-opting keeps it. */
+export function setGoldenBootStatus(playerId: string, status: "in" | "declined"): void {
+  db()
+    .prepare(
+      `INSERT INTO golden_boot(player_id, status, decided_at)
+       VALUES(?, ?, datetime('now'))
+       ON CONFLICT(player_id) DO UPDATE
+         SET status = excluded.status,
+             decided_at = COALESCE(golden_boot.decided_at, excluded.decided_at),
+             updated_at = datetime('now')`,
+    )
+    .run(playerId, status);
+}
+
+export function setGoldenBootPick(playerId: string, pickId: string): void {
+  db()
+    .prepare("UPDATE golden_boot SET pick_id = ?, updated_at = datetime('now') WHERE player_id = ?")
+    .run(pickId, playerId);
+}
+
+export function setGoldenBootPaid(playerId: string, paid: boolean): void {
+  db()
+    .prepare("UPDATE golden_boot SET paid = ?, updated_at = datetime('now') WHERE player_id = ?")
+    .run(paid ? 1 : 0, playerId);
+}
+
+export function getAllGoldenBoot(): GoldenBootEntry[] {
+  const rows = db()
+    .prepare("SELECT player_id, status, pick_id, paid FROM golden_boot")
+    .all() as unknown as GoldenBootRow[];
+  return rows.map(toGoldenBoot);
 }
 
 function safeParse<T>(s: string, fallback: T): T {

@@ -38,6 +38,7 @@ function seedDefaults(d: DatabaseSync) {
     // 2026 opener: Mexico v South Africa, 3pm ET (EDT = -04:00).
     [KV.lockAt]: process.env.LOCK_AT ?? "2026-06-11T15:00:00-04:00",
     [KV.buyInCents]: Number(process.env.BUY_IN_CENTS ?? 5000),
+    [KV.goldenBootBuyInCents]: Number(process.env.GOLDEN_BOOT_BUY_IN_CENTS ?? 2000),
   };
   for (const [k, v] of Object.entries(defaults)) put.run(k, JSON.stringify(v));
 }
@@ -83,6 +84,19 @@ function migrate(d: DatabaseSync) {
       transcript   TEXT NOT NULL DEFAULT '[]',    -- JSON ConverseMessage[] for resume
       proposal     TEXT,                          -- last propose_bracket payload (JSON)
       updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    -- Golden Boot side bet: one row per player who has answered the post-lock
+    -- opt-in prompt. No row = hasn't decided yet (or snoozed — snooze is
+    -- client-side only). Separate from the bracket table because it's its own
+    -- opt-in with its own paid flag and its own lock (end of group stage).
+    CREATE TABLE IF NOT EXISTS golden_boot (
+      player_id   TEXT PRIMARY KEY REFERENCES player(id) ON DELETE CASCADE,
+      status      TEXT NOT NULL,              -- 'in' | 'declined'
+      pick_id     TEXT,                       -- candidate id (null until picked)
+      paid        INTEGER NOT NULL DEFAULT 0, -- extra buy-in received (admin toggles)
+      decided_at  TEXT,                       -- when they first opted in / declined
+      updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
     -- Raw fixtures pulled from football-data.org by the score poller.
@@ -140,6 +154,11 @@ export const KV = {
   groupName: "group_name",
   groupPasscode: "group_passcode",
   results: "results", // the actual tournament outcomes (Results JSON), set by the poller/admin
+  // ── Golden Boot side bet ──
+  goldenBootBuyInCents: "golden_boot_buy_in_cents",
+  goldenBootLockAt: "golden_boot_lock_at", // ISO override; else derived from feed (first R32 kickoff)
+  goldenBootResult: "golden_boot_result", // winning candidate id, set post-tournament
+  goldenBootRoster: "golden_boot_roster", // cached BootCandidate[] — full roster or shortlist
 } as const;
 
 /** Hard lock gate — every bracket write must call this first. */

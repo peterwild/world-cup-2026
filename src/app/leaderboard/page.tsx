@@ -16,6 +16,7 @@ import { Countdown } from "@/components/Countdown";
 import { OddsCard, pct } from "@/components/OddsCard";
 import { RootingCard } from "@/components/RootingCard";
 import { LiveStrip } from "@/components/LiveStrip";
+import { GoldenBootCard } from "@/components/GoldenBootCard";
 import { pulseEmoji, pulseSentence } from "@/components/SpiritPulse";
 
 export const runtime = "nodejs";
@@ -132,6 +133,9 @@ export default async function LeaderboardPage() {
           </div>
         </div>
       </section>
+
+      {/* Golden Boot side bet — opt-in prompt / picker / status (client, self-fetches) */}
+      <GoldenBootCard />
 
       {/* Champion + spirit callouts */}
       {champion && (
