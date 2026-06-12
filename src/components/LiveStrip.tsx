@@ -6,18 +6,26 @@ import type { LiveGame, FinishedGame, LiveView } from "@/lib/footballData";
 import { Flag } from "@/components/Flag";
 
 // Compact "Live & today" strip on the leaderboard. Polls /api/live (the box's
-// self-throttling cache) and shows running scores — plus, the point of the
-// thing, whether the team your bracket wants is currently ahead or behind.
+// self-throttling cache) and shows running scores. For a LIVE game it spells out
+// who to root for and whether they're winning, plus the loved "46% → 49%" odds
+// swing. For TODAY's finished games it shows whether your bracket pick won.
 //
-// `rootMap` is keyed by `${home}-${away}` (team ids, real orientation) → the
-// outcome that best helps YOU win the pool (from the odds snapshot's rooting
-// buckets). Spirit team is the fallback signal when a game isn't in that map.
+// Two signals feed it:
+//  • `arrows` — the odds snapshot's rooting recommendation (who to root for to
+//    win the pool, + the swing). Only exists for live/upcoming fixtures.
+//  • `back` — how deep your bracket carried each team (lib/bracketState). The
+//    fallback when there's no odds entry, and what settles finished games.
 
-/** Outcome the user should root for, keyed by real home-away orientation. */
-type RootMap = Record<string, "home" | "away" | "draw">;
+type Side = "home" | "away";
+type Leader = Side | "draw";
+type Tone = "good" | "bad" | "neutral";
 
-/** Client poll cadence (the box caches harder upstream — this just keeps the UI
- *  live without hammering). Fast while a game is on, lazy otherwise. */
+/** team id → how deep your bracket backed it (≥1 = picked into the knockouts). */
+type BackDepth = Record<string, number>;
+/** `${home}-${away}` → the result to root for + your P(win pool) if it lands. */
+type RootArrow = { outcome: Leader; win: number };
+type RootArrows = Record<string, RootArrow>;
+
 const POLL_LIVE = 30_000;
 const POLL_SOON = 90_000;
 const POLL_IDLE = 5 * 60_000;
@@ -26,63 +34,165 @@ function pairKey(home: string, away: string): string {
   return `${home}-${away}`;
 }
 
+/** "9.0%" / "11.4%" — one decimal so both sides of the arrow line up. */
+function pct1(p: number): string {
+  return `${(p * 100).toFixed(1)}%`;
+}
+
 function minuteLabel(g: LiveGame): string {
   if (g.status === "PAUSED") return "HT";
   if (g.minute != null) return `${g.minute}'`;
   return "LIVE";
 }
 
-/** The bracket overlay for one game: which side the user wants, and whether
- *  it's currently going their way. Returns null when nothing's at stake. */
-function overlay(
+function leaderOf(hg: number, ag: number): Leader {
+  return hg > ag ? "home" : ag > hg ? "away" : "draw";
+}
+
+/** Which side your bracket backs, or null if neither (or both equally). */
+function backedSide(home: string, away: string, back: BackDepth): Side | null {
+  const dh = back[home] ?? 0;
+  const da = back[away] ?? 0;
+  if (Math.max(dh, da) < 1) return null;
+  if (Math.abs(dh - da) < 0.05) return null;
+  return dh > da ? "home" : "away";
+}
+
+function toneColor(tone: Tone): string {
+  return tone === "good" ? "var(--pitch)" : tone === "bad" ? "var(--destructive)" : "var(--muted-foreground)";
+}
+
+// ── LIVE game: who to root for + is it going your way ────────────────────────
+interface LiveCall {
+  /** The result to root for. team id, or "draw", or null (no stake). */
+  root: string | "draw" | null;
+  /** A pure-spirit root (nothing on the line but the heart). */
+  spiritOnly: boolean;
+  emoji: string;
+  tone: Tone;
+  /** Spirit-team heart that rides along when you DO have a pool stake. */
+  heart: string;
+}
+
+function liveCall(
   home: string,
   away: string,
   hg: number,
   ag: number,
-  rootMap: RootMap,
+  arrow: RootArrow | undefined,
+  back: BackDepth,
   spiritTeamId: string | null,
-): { emoji: string; label: string; tone: "good" | "bad" | "neutral" } | null {
-  const want = rootMap[pairKey(home, away)];
-  const spirit = spiritTeamId === home ? "home" : spiritTeamId === away ? "away" : null;
-  const leader: "home" | "away" | "draw" = hg > ag ? "home" : ag > hg ? "away" : "draw";
+): LiveCall {
+  const leader = leaderOf(hg, ag);
+  const spiritSide: Side | null = spiritTeamId === home ? "home" : spiritTeamId === away ? "away" : null;
 
-  // Spirit team in this match — lead with the heart, it's the emotional hook.
-  if (spirit) {
-    if (leader === spirit) return { emoji: "💗", label: "your spirit team ahead", tone: "good" };
-    if (leader === "draw") return { emoji: "💓", label: "your spirit team level", tone: "neutral" };
-    return { emoji: "💔", label: "your spirit team trailing", tone: "bad" };
+  // Who to root for to win the pool: odds recommendation first, then bracket.
+  const outcome: Leader | null = arrow ? arrow.outcome : backedSide(home, away, back);
+
+  if (outcome === null) {
+    // No pool stake — root for your spirit team if it's playing, else nothing.
+    if (spiritSide) {
+      const emoji = leader === spiritSide ? "💗" : leader === "draw" ? "💓" : "💔";
+      const tone: Tone = leader === spiritSide ? "good" : leader === "draw" ? "neutral" : "bad";
+      return { root: spiritSide === "home" ? home : away, spiritOnly: true, emoji, tone, heart: "" };
+    }
+    return { root: null, spiritOnly: false, emoji: "🍿", tone: "neutral", heart: "" };
   }
 
-  if (!want) return null;
-  if (want === "draw") {
-    if (leader === "draw") return { emoji: "✅", label: "you want the draw — level", tone: "good" };
-    return { emoji: "⚠️", label: "you want a draw", tone: "bad" };
+  // You have someone to pull for — is the game going their way?
+  let emoji: string;
+  let tone: Tone;
+  if (outcome === "draw") {
+    emoji = leader === "draw" ? "✅" : "😬";
+    tone = leader === "draw" ? "good" : "bad";
+  } else if (leader === outcome) {
+    emoji = "✅";
+    tone = "good";
+  } else if (leader === "draw") {
+    emoji = "😐";
+    tone = "neutral";
+  } else {
+    emoji = "😬";
+    tone = "bad";
   }
-  // You want a specific team to win.
-  if (leader === want) return { emoji: "✅", label: "your pick ahead", tone: "good" };
-  if (leader === "draw") return { emoji: "⚠️", label: "your pick held to a draw", tone: "neutral" };
-  return { emoji: "⚠️", label: "your pick trailing", tone: "bad" };
+  // No spirit heart on the root line — a bare heart next to "Root for KOR" reads
+  // as if rooting for Korea is the sad part. Spirit conflict lives in the
+  // upcoming "who to root for" card, which has room for the words.
+  const root = outcome === "draw" ? "draw" : outcome === "home" ? home : away;
+  return { root, spiritOnly: false, emoji, tone, heart: "" };
 }
 
-function toneColor(tone: "good" | "bad" | "neutral"): string {
-  return tone === "good" ? "var(--pitch)" : tone === "bad" ? "var(--destructive)" : "var(--muted-foreground)";
+/** "Root for 🇰🇷 KOR" / "Root for 🤝 a draw" — the headline for a live game. */
+function RootFor({ call }: { call: LiveCall }) {
+  if (call.root === null) {
+    return <span className="font-medium" style={{ color: toneColor(call.tone) }}>{call.emoji} no stake — enjoy</span>;
+  }
+  const team = call.root === "draw" ? null : TEAMS_BY_ID[call.root];
+  return (
+    <span className="font-medium inline-flex items-center gap-1" style={{ color: toneColor(call.tone) }}>
+      <span>{call.emoji}</span>
+      <span>Root for</span>
+      {team ? (
+        <>
+          <Flag code={team.flag} sm />
+          <span>{team.name}</span>
+        </>
+      ) : (
+        <span>🤝 a draw</span>
+      )}
+      {call.heart && <span>{call.heart}</span>}
+    </span>
+  );
+}
+
+// ── FINISHED game: did your bracket pick come through? ───────────────────────
+function finishedVerdict(
+  home: string,
+  away: string,
+  hg: number,
+  ag: number,
+  back: BackDepth,
+  spiritTeamId: string | null,
+): { emoji: string; label: string; tone: Tone } | null {
+  const leader = leaderOf(hg, ag);
+  const want = backedSide(home, away, back);
+  const spirit: Side | null = spiritTeamId === home ? "home" : spiritTeamId === away ? "away" : null;
+
+  if (want) {
+    const heart = spirit ? ` ${leader === spirit ? "💗" : leader === "draw" ? "💓" : "💔"}` : "";
+    if (leader === want) return { emoji: "🎉", label: `your pick won${heart}`, tone: "good" };
+    if (leader === "draw") return { emoji: "😕", label: `your pick only drew${heart}`, tone: "neutral" };
+    return { emoji: "😞", label: `your pick lost${heart}`, tone: "bad" };
+  }
+  if (spirit) {
+    if (leader === spirit) return { emoji: "💗", label: "your spirit team won", tone: "good" };
+    if (leader === "draw") return { emoji: "💓", label: "your spirit team drew", tone: "neutral" };
+    return { emoji: "💔", label: "heartbroken", tone: "bad" };
+  }
+  return null; // no stake — stay quiet on the results list
 }
 
 function LiveRow({
   g,
-  rootMap,
+  back,
   spiritTeamId,
+  arrows,
+  baselineWin,
   glow,
 }: {
   g: LiveGame;
-  rootMap: RootMap;
+  back: BackDepth;
   spiritTeamId: string | null;
+  arrows: RootArrows;
+  baselineWin: number;
   glow: boolean;
 }) {
   const home = TEAMS_BY_ID[g.home];
   const away = TEAMS_BY_ID[g.away];
   if (!home || !away) return null;
-  const ov = overlay(g.home, g.away, g.homeGoals, g.awayGoals, rootMap, spiritTeamId);
+  const arrow = arrows[pairKey(g.home, g.away)];
+  const call = liveCall(g.home, g.away, g.homeGoals, g.awayGoals, arrow, back, spiritTeamId);
+  const showArrow = arrow !== undefined && baselineWin > 0;
 
   return (
     <div className={`rounded-lg p-2 ${glow ? "scored-glow" : ""}`}>
@@ -103,67 +213,87 @@ function LiveRow({
           <Flag code={away.flag} sm />
         </span>
       </div>
-      <div className="mt-0.5 flex items-center justify-between gap-2 text-xs">
-        <span className="flex items-center gap-1.5 text-muted-foreground">
+      <div className="mt-1 flex items-center justify-between gap-2 text-xs">
+        <span className="flex items-center gap-1.5 text-muted-foreground shrink-0">
           <span className="live-dot" aria-hidden />
           <span className="tabular-nums">{minuteLabel(g)}</span>
         </span>
-        {ov && (
-          <span className="font-medium" style={{ color: toneColor(ov.tone) }}>
-            {ov.emoji} {ov.label}
-          </span>
-        )}
+        <RootFor call={call} />
       </div>
+      {showArrow && (
+        <div
+          className="mt-0.5 text-right text-xs tabular-nums"
+          title={`If the result you want lands, your odds to win the pool go to ${pct1(arrow.win)}.`}
+        >
+          <span className="text-muted-foreground">{pct1(baselineWin)} → </span>
+          <span
+            className="font-semibold"
+            style={{ color: arrow.win >= baselineWin ? "var(--pitch)" : "var(--destructive)" }}
+          >
+            {pct1(arrow.win)}
+          </span>
+          <span className="text-muted-foreground"> win odds</span>
+        </div>
+      )}
     </div>
   );
 }
 
 function FinishedRow({
   g,
-  rootMap,
+  back,
   spiritTeamId,
 }: {
   g: FinishedGame;
-  rootMap: RootMap;
+  back: BackDepth;
   spiritTeamId: string | null;
 }) {
   const home = TEAMS_BY_ID[g.home];
   const away = TEAMS_BY_ID[g.away];
   if (!home || !away) return null;
-  const ov = overlay(g.home, g.away, g.homeGoals, g.awayGoals, rootMap, spiritTeamId);
+  const v = finishedVerdict(g.home, g.away, g.homeGoals, g.awayGoals, back, spiritTeamId);
 
   return (
-    <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground py-0.5">
-      <span className="flex items-center gap-1.5 min-w-0">
+    <div className="flex items-center justify-between gap-2 text-xs py-0.5">
+      <span className="flex items-center gap-1.5 min-w-0 text-muted-foreground">
         <Flag code={home.flag} sm />
         <span className={`truncate ${g.winner === "home" ? "text-foreground font-medium" : ""}`}>
           {home.name}
         </span>
       </span>
-      <span className="tabular-nums whitespace-nowrap px-1">
-        {g.homeGoals}–{g.awayGoals}
-        <span className="ml-1 eyebrow">FT</span>
+      <span className="flex items-center gap-1.5 whitespace-nowrap">
+        {v && (
+          <span style={{ color: toneColor(v.tone) }} title={v.label}>
+            {v.emoji}
+          </span>
+        )}
+        <span className="tabular-nums text-muted-foreground">
+          {g.homeGoals}–{g.awayGoals}
+          <span className="ml-1 eyebrow">FT</span>
+        </span>
       </span>
-      <span className="flex items-center gap-1.5 min-w-0 justify-end">
+      <span className="flex items-center gap-1.5 min-w-0 justify-end text-muted-foreground">
         <span className={`truncate ${g.winner === "away" ? "text-foreground font-medium" : ""}`}>
           {away.name}
         </span>
         <Flag code={away.flag} sm />
-        {ov && <span title={ov.label}>{ov.emoji}</span>}
       </span>
     </div>
   );
 }
 
 export function LiveStrip({
-  rootMap,
+  back,
   spiritTeamId,
+  arrows,
+  baselineWin,
 }: {
-  rootMap: RootMap;
+  back: BackDepth;
   spiritTeamId: string | null;
+  arrows: RootArrows;
+  baselineWin: number;
 }) {
   const [view, setView] = useState<LiveView | null>(null);
-  // Game key → last seen "h-a" score, for detecting goals → glow.
   const prevScores = useRef<Map<string, string>>(new Map());
   const [glowing, setGlowing] = useState<Set<string>>(new Set());
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -184,15 +314,14 @@ export function LiveStrip({
         const next = (await res.json()) as LiveView;
         if (cancelled) return;
 
-        // Detect goals: a live game whose score grew → glow the card, and if it
-        // was the user's team that scored, the glow reads as a little win.
+        // Detect goals: a live game whose score grew → glow the card.
         const fresh = new Set<string>();
         for (const g of next.live) {
           const key = g.id != null ? String(g.id) : pairKey(g.home, g.away);
-          const now = `${g.homeGoals}-${g.awayGoals}`;
+          const score = `${g.homeGoals}-${g.awayGoals}`;
           const was = prevScores.current.get(key);
-          if (was && was !== now) fresh.add(key);
-          prevScores.current.set(key, now);
+          if (was && was !== score) fresh.add(key);
+          prevScores.current.set(key, score);
         }
         if (fresh.size) {
           setGlowing(fresh);
@@ -205,14 +334,9 @@ export function LiveStrip({
       }
     }
 
-    // Pause polling when the tab's hidden; refetch immediately on return.
     function onVisibility() {
-      if (document.hidden) {
-        if (timer.current) clearTimeout(timer.current);
-      } else {
-        if (timer.current) clearTimeout(timer.current);
-        tick();
-      }
+      if (timer.current) clearTimeout(timer.current);
+      if (!document.hidden) tick();
     }
 
     tick();
@@ -246,8 +370,10 @@ export function LiveStrip({
               <LiveRow
                 key={key}
                 g={g}
-                rootMap={rootMap}
+                back={back}
                 spiritTeamId={spiritTeamId}
+                arrows={arrows}
+                baselineWin={baselineWin}
                 glow={glowing.has(key)}
               />
             );
@@ -263,7 +389,7 @@ export function LiveStrip({
               <FinishedRow
                 key={g.id != null ? String(g.id) : pairKey(g.home, g.away)}
                 g={g}
-                rootMap={rootMap}
+                back={back}
                 spiritTeamId={spiritTeamId}
               />
             ))}

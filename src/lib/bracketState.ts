@@ -48,6 +48,41 @@ export function r32Field(d: DraftBracket): string[] {
   return [...groupAdvancers(d), ...d.bestThirds];
 }
 
+/** How deeply a player's bracket "backs" each team — the live strip uses it to
+ *  say whose team is winning. Knockout depth dominates (R32=1 … CHAMPION=6),
+ *  with a small group-finish fraction so a group-stage match between two of
+ *  your advancers resolves to the one you ranked higher. A team you didn't pick
+ *  to reach the knockouts scores < 1; absent teams are 0. Pure + always
+ *  available (no time window), so finished games keep their verdict all day. */
+const KO_BACKING: { round: KnockoutRound; depth: number }[] = [
+  { round: "R16", depth: 2 },
+  { round: "QF", depth: 3 },
+  { round: "SF", depth: 4 },
+  { round: "FINAL", depth: 5 },
+  { round: "CHAMPION", depth: 6 },
+];
+export function backingDepth(d: DraftBracket): Record<string, number> {
+  const ko: Record<string, number> = {};
+  const bump = (t: string | undefined, v: number) => {
+    if (t) ko[t] = Math.max(ko[t] ?? 0, v);
+  };
+  for (const t of r32Field(d)) bump(t, 1);
+  for (const { round, depth } of KO_BACKING) for (const t of d.rounds[round] ?? []) bump(t, depth);
+
+  const frac: Record<string, number> = {};
+  for (const g of GROUP_IDS) {
+    (d.groupOrder[g] ?? []).forEach((t, i) => {
+      if (t) frac[t] = Math.max(frac[t] ?? 0, 0.3 - i * 0.1); // 1st .3 / 2nd .2 / 3rd .1
+    });
+  }
+
+  const depth: Record<string, number> = {};
+  for (const t of new Set([...Object.keys(ko), ...Object.keys(frac)])) {
+    depth[t] = (ko[t] ?? 0) + (frac[t] ?? 0);
+  }
+  return depth;
+}
+
 /** Teams available to pick INTO a given knockout round (the prior round's set). */
 export function poolForRound(d: DraftBracket, round: KnockoutRound): string[] {
   if (round === "R32") return [];

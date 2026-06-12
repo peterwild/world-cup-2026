@@ -95,7 +95,7 @@ function GameRow({
             <strong className="text-foreground">{team.name}</strong>
           </>
         ) : (
-          <strong className="text-foreground">a draw</strong>
+          <strong className="text-foreground">🤝 a draw</strong>
         )}
         {heart}
       </>

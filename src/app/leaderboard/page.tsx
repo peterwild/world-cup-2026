@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getSessionPlayerId } from "@/lib/session";
-import { getGroupName, getResults } from "@/lib/repo";
+import { getDraft, getGroupName, getResults } from "@/lib/repo";
+import { backingDepth } from "@/lib/bracketState";
 import { isLocked, kvGet, KV } from "@/lib/db";
 import { computeLeaderboard, formatUsd } from "@/lib/standings";
 import { PAYOUT_SPLIT, computePayouts } from "@/lib/tournament";
@@ -44,13 +45,23 @@ export default async function LeaderboardPage() {
   const results = odds ? getResults() : null;
   const myOdds = oddsById.get(meId);
   const rooting = currentRooting(odds?.rooting ?? []);
+  // Live games belong to the live strip (with their score + odds arrow), so
+  // keep them out of the upcoming-games "who to root for" card — no double-show.
+  const isLiveFixture = (s: string) => s === "IN_PLAY" || s === "PAUSED";
+  const rootingUpcoming = {
+    games: rooting.games.filter((r) => !isLiveFixture(r.fixture.status)),
+    laterGames: rooting.laterGames.filter((r) => !isLiveFixture(r.fixture.status)),
+  };
 
-  // Per-game rooting outcome for ME, keyed by real home-away orientation, for
-  // the live strip's overlay. Reuses the odds snapshot's rooting buckets (same
-  // best-outcome + meaningful-spread logic as RootingCard); only games that
-  // actually move my pool odds get an entry — the rest fall back to spirit team.
-  const ROOT_MEANINGFUL = 0.003;
-  const liveRootMap: Record<string, "home" | "away" | "draw"> = {};
+  // How deeply my bracket backs each team — the live strip's fallback "who to
+  // root for" + what settles finished games. Always available (no odds window).
+  const myBackDepth = backingDepth(getDraft(meId).draft);
+
+  // Per-game rooting recommendation for ME, keyed by real home-away orientation:
+  // the result that most improves my pool odds + that win prob. Drives the live
+  // strip's "Root for X" headline and the 46% → 49% swing. Only meaningful games
+  // (the result actually moves my odds) get an entry.
+  const myArrows: Record<string, { outcome: "home" | "away" | "draw"; win: number }> = {};
   for (const r of odds?.rooting ?? []) {
     const mine = r.outcomes.filter((o) => o.winProb[meId] !== undefined);
     if (mine.length === 0) continue;
@@ -60,8 +71,8 @@ export default async function LeaderboardPage() {
       if (o.winProb[meId] > best.winProb[meId]) best = o;
       if (o.winProb[meId] < worst.winProb[meId]) worst = o;
     }
-    if (best.winProb[meId] - worst.winProb[meId] < ROOT_MEANINGFUL) continue;
-    liveRootMap[`${r.fixture.home}-${r.fixture.away}`] = best.outcome;
+    if (best.winProb[meId] - worst.winProb[meId] < 0.003) continue; // doesn't move me
+    myArrows[`${r.fixture.home}-${r.fixture.away}`] = { outcome: best.outcome, win: best.winProb[meId] };
   }
   const placeLabels = ["1st", "2nd", "3rd"];
   const placeColors = [
@@ -112,10 +123,6 @@ export default async function LeaderboardPage() {
         </div>
       </section>
 
-      {/* Live & today's scores — people come here for the games too. Renders
-          nothing when nothing's live or finished today. */}
-      <LiveStrip rootMap={liveRootMap} spiritTeamId={myStanding?.spiritTeamId ?? null} />
-
       {/* Champion + spirit callouts */}
       {champion && (
         <section
@@ -150,12 +157,21 @@ export default async function LeaderboardPage() {
         />
       )}
 
-      {/* Who to root for — today's games, conditioned per result. (Older
-          cached snapshots predate `rooting`, hence the fallback.) */}
-      {odds && myOdds && rooting.games.length > 0 && (
+      {/* Live & today's scores — people come here for the games too. Renders
+          nothing when nothing's live or finished today. */}
+      <LiveStrip
+        back={myBackDepth}
+        spiritTeamId={myStanding?.spiritTeamId ?? null}
+        arrows={myArrows}
+        baselineWin={myOdds?.winProb ?? 0}
+      />
+
+      {/* Who to root for — UPCOMING games only (live ones are in the strip
+          above, with their score + odds arrow). Conditioned per result. */}
+      {odds && myOdds && rootingUpcoming.games.length > 0 && (
         <RootingCard
-          games={rooting.games}
-          laterGames={rooting.laterGames}
+          games={rootingUpcoming.games}
+          laterGames={rootingUpcoming.laterGames}
           meId={meId}
           baselineWin={myOdds.winProb}
           spiritTeamId={myStanding?.spiritTeamId ?? null}
