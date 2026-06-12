@@ -16,9 +16,9 @@
 // resolve/pot math doesn't touch (they take plain arrays).
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { kvGet, KV } from "./db";
+import { kvGet, kvSet, KV } from "./db";
 import { getMatchFeed, type MatchFeed } from "./matches";
-import { STAGE_TO_ROUND } from "./footballData";
+import { STAGE_TO_ROUND, type ScorerStanding } from "./footballData";
 
 export interface BootCandidate {
   /** id within the active candidate set (fd player id when from the roster, a
@@ -137,6 +137,38 @@ export interface GoldenBootResolution {
   refund: boolean;
   /** split per winner, or (on refund) each participant's buy-in back. */
   perPlayerCents: number;
+}
+
+// ── Live goal table (Golden Boot race) ───────────────────────────────────────
+
+export function getScorers(): ScorerStanding[] {
+  return kvGet<ScorerStanding[]>(KV.goldenBootScorers, []);
+}
+
+export function setScorers(standings: ScorerStanding[]): void {
+  kvSet(KV.goldenBootScorers, standings);
+}
+
+/** Goals scored so far by a given pick, or null if that pick hasn't scored
+ *  (not in the table — the feed only lists players with ≥1 goal). */
+export function goalsForPick(standings: ScorerStanding[], pickId: string | null): number | null {
+  if (!pickId) return null;
+  const hit = standings.find((s) => s.id === pickId);
+  return hit ? hit.goals : null;
+}
+
+/** Current leader(s) of the race. `tied` when more than one shares the top
+ *  goal count — the real award breaks ties (assists, fewer minutes); the pool
+ *  settles those by hand, so we never auto-resolve a tie. */
+export function goldenBootLeader(standings: ScorerStanding[]): {
+  leaders: ScorerStanding[];
+  tied: boolean;
+} {
+  if (standings.length === 0) return { leaders: [], tied: false };
+  const top = standings[0].goals;
+  if (top <= 0) return { leaders: [], tied: false };
+  const leaders = standings.filter((s) => s.goals === top);
+  return { leaders, tied: leaders.length > 1 };
 }
 
 export function resolveGoldenBoot(

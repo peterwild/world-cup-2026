@@ -5,7 +5,7 @@
 //   node --import ./scripts/ts-ext-resolver.mjs scripts/poll-scores.mjs [--dry-run|--print-groups]
 //
 // Env: FOOTBALL_DATA_KEY (required), SITE_URL + ADMIN_KEY (required to push).
-import { deriveMatches, deriveResults, groupsFromMatches } from "../src/lib/footballData.ts";
+import { deriveMatches, deriveResults, groupsFromMatches, deriveScorers } from "../src/lib/footballData.ts";
 import { GROUP_IDS, TEAMS, TEAMS_BY_ID } from "../src/lib/teams.ts";
 
 const KEY = process.env.FOOTBALL_DATA_KEY;
@@ -127,4 +127,29 @@ const pushFeed = await fetch(`${SITE}/api/admin/matches`, {
   body: JSON.stringify(feed),
 });
 console.log("push matches:", pushFeed.status, await pushFeed.text());
+
+// Golden Boot live goal table — a SECOND football-data call (still inside the
+// free tier's 10/min). Best-effort: a scorers hiccup must never fail the run
+// that already pushed the authoritative results above.
+try {
+  const sres = await fetchWithRetry("https://api.football-data.org/v4/competitions/WC/scorers?limit=100", {
+    headers: { "X-Auth-Token": KEY },
+  });
+  if (sres.ok) {
+    const { scorers = [] } = await sres.json();
+    const { standings, unmapped } = deriveScorers(scorers);
+    if (unmapped.length) console.warn("⚠️  Unmapped scorer teams:", unmapped);
+    const pushScorers = await fetch(`${SITE}/api/admin/golden-boot`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-admin-key": ADMIN },
+      body: JSON.stringify({ op: "scorers", scorers: standings }),
+    });
+    console.log(`push scorers (${standings.length}):`, pushScorers.status, await pushScorers.text());
+  } else {
+    console.warn("scorers fetch non-OK:", sres.status, "— skipping (results already pushed).");
+  }
+} catch (err) {
+  console.warn("scorers step failed (non-fatal):", err.message);
+}
+
 if (!push.ok || !pushFeed.ok) process.exit(1);

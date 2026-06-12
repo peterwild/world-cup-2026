@@ -4,8 +4,11 @@ import {
   goldenBootPot,
   resolveGoldenBoot,
   firstR32Kickoff,
+  goalsForPick,
+  goldenBootLeader,
   type GoldenBootEntry,
 } from "./goldenBoot.ts";
+import { deriveScorers } from "./footballData.ts";
 import type { MatchFeed } from "./matches.ts";
 
 const BUY_IN = 2000;
@@ -95,4 +98,47 @@ test("firstR32Kickoff: null when no R32 fixtures are known yet", () => {
     fetchedAt: "2026-06-25T00:00:00Z",
   };
   assert.equal(firstR32Kickoff(feed), null);
+});
+
+test("deriveScorers: maps fd ids/teams, sorts goals desc, skips id-less rows", () => {
+  const { standings, unmapped } = deriveScorers([
+    { player: { id: 1, name: "Kane" }, team: { name: "England" }, goals: 3 },
+    { player: { id: 2, name: "Haaland" }, team: { name: "Norway" }, goals: 5 },
+    { player: { id: undefined, name: "Ghost" }, team: { name: "England" }, goals: 9 }, // no id → skip
+    { player: { id: 3, name: "X" }, team: { name: "Atlantis" }, goals: 1 }, // unmapped team
+  ]);
+  assert.deepEqual(standings.map((s) => [s.name, s.goals, s.id, s.teamId]), [
+    ["Haaland", 5, "2", "nor"],
+    ["Kane", 3, "1", "eng"],
+    ["X", 1, "3", null],
+  ]);
+  assert.deepEqual(unmapped, ["Atlantis"]);
+});
+
+test("goalsForPick: returns the pick's tally, or null when not on the board", () => {
+  const standings = [
+    { id: "2", name: "Haaland", teamId: "nor", goals: 5 },
+    { id: "1", name: "Kane", teamId: "eng", goals: 3 },
+  ];
+  assert.equal(goalsForPick(standings, "1"), 3);
+  assert.equal(goalsForPick(standings, "99"), null); // hasn't scored
+  assert.equal(goalsForPick(standings, null), null);
+});
+
+test("goldenBootLeader: sole leader vs tie; empty/zero board has no leader", () => {
+  assert.deepEqual(goldenBootLeader([]).leaders, []);
+  const zero = goldenBootLeader([{ id: "1", name: "K", teamId: "eng", goals: 0 }]);
+  assert.deepEqual(zero.leaders, []); // nobody has scored
+  const sole = goldenBootLeader([
+    { id: "2", name: "Haaland", teamId: "nor", goals: 5 },
+    { id: "1", name: "Kane", teamId: "eng", goals: 3 },
+  ]);
+  assert.equal(sole.tied, false);
+  assert.deepEqual(sole.leaders.map((l) => l.id), ["2"]);
+  const tie = goldenBootLeader([
+    { id: "2", name: "Haaland", teamId: "nor", goals: 4 },
+    { id: "1", name: "Kane", teamId: "eng", goals: 4 },
+  ]);
+  assert.equal(tie.tied, true);
+  assert.deepEqual(tie.leaders.map((l) => l.id).sort(), ["1", "2"]);
 });

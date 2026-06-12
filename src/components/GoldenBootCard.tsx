@@ -22,6 +22,13 @@ interface Candidate {
   teamId: string;
 }
 
+interface ScorerRow {
+  id: string;
+  name: string;
+  teamId: string | null;
+  goals: number;
+}
+
 interface GoldenBootView {
   status: "in" | "declined" | null;
   pickId: string | null;
@@ -33,12 +40,53 @@ interface GoldenBootView {
   result: string | null;
   pot: number;
   participants: number;
+  pickGoals: number | null;
+  topScorers: ScorerRow[];
 }
 
 const SNOOZE_KEY = "gb_snoozed";
 
 function usd(cents: number): string {
   return (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
+}
+
+/** "· 3 goals" / "· 1 goal" / "· yet to score" for a pick's tally. */
+function goalsLabel(goals: number | null): string {
+  if (goals === null) return "· yet to score";
+  return `· ${goals} ${goals === 1 ? "goal" : "goals"}`;
+}
+
+/** Compact live top-5 Golden Boot race; highlights the viewer's pick. */
+function Race({ scorers, myPickId }: { scorers: ScorerRow[]; myPickId: string | null }) {
+  if (scorers.length === 0) return null;
+  return (
+    <div className="mt-3 pt-3 border-t" style={{ borderColor: GOLD }}>
+      <div className="eyebrow" style={{ color: GOLD }}>
+        Golden Boot race
+      </div>
+      <div className="mt-1.5 space-y-1">
+        {scorers.map((s, i) => {
+          const mine = s.id === myPickId;
+          const team = s.teamId ? TEAMS_BY_ID[s.teamId] : null;
+          return (
+            <div
+              key={s.id}
+              className="flex items-center gap-1.5 text-sm"
+              style={mine ? { fontWeight: 600, color: GOLD } : undefined}
+            >
+              <span className="w-4 text-xs text-muted-foreground tabular-nums">{i + 1}</span>
+              {team && <Flag code={team.flag} sm />}
+              <span className="flex-1 truncate">
+                {s.name}
+                {mine && " (you)"}
+              </span>
+              <span className="tabular-nums font-semibold">{s.goals}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 const GOLD = "var(--podium-gold)";
@@ -94,7 +142,7 @@ export function GoldenBootCard() {
 
   if (!view) return null; // loading or not signed in
 
-  const { status, pickId, paid, candidates, buyInCents, locked, result } = view;
+  const { status, pickId, paid, candidates, buyInCents, locked, result, pickGoals, topScorers } = view;
   const pickCand = candidates.find((c) => c.id === pickId) ?? null;
   const resultCand = result ? candidates.find((c) => c.id === result) ?? null : null;
 
@@ -133,11 +181,12 @@ export function GoldenBootCard() {
               ? "Not your pick this time."
               : "You sat this one out."}
         </div>
+        <Race scorers={topScorers} myPickId={pickId} />
       </div>,
     );
   }
 
-  // ── Locked, pre-result: read-only ──
+  // ── Locked, pre-result: read-only + live race ──
   if (locked) {
     return shell(
       <div>
@@ -150,12 +199,15 @@ export function GoldenBootCard() {
               <span className="text-muted-foreground">Your pick:</span>
               {TEAMS_BY_ID[pickCand.teamId] && <Flag code={TEAMS_BY_ID[pickCand.teamId].flag} sm />}
               <span className="font-semibold">{pickCand.name}</span>
-              <span className="text-muted-foreground">· {paid ? "paid ✓" : "payment pending"}</span>
+              <span className="text-muted-foreground">
+                {goalsLabel(pickGoals)} · {paid ? "paid ✓" : "payment pending"}
+              </span>
             </span>
           ) : (
             <span className="text-muted-foreground">Picks are closed. You&apos;re not in this pot.</span>
           )}
         </div>
+        <Race scorers={topScorers} myPickId={pickId} />
       </div>,
     );
   }
@@ -174,30 +226,34 @@ export function GoldenBootCard() {
     );
   }
 
-  // ── Open: opted in WITH a pick → compact status ──
+  // ── Open: opted in WITH a pick → compact status + live race ──
   if (status === "in" && pickCand) {
     return shell(
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <div className="eyebrow" style={{ color: GOLD }}>
-            🥇 Golden Boot · {usd(view.pot)} pot
+      <div>
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="eyebrow" style={{ color: GOLD }}>
+              🥇 Golden Boot · {usd(view.pot)} pot
+            </div>
+            <div className="mt-1 text-sm flex items-center gap-1.5">
+              <span className="text-muted-foreground">Your pick:</span>
+              {TEAMS_BY_ID[pickCand.teamId] && <Flag code={TEAMS_BY_ID[pickCand.teamId].flag} sm />}
+              <span className="font-semibold truncate">{pickCand.name}</span>
+              <span className="text-muted-foreground shrink-0">{goalsLabel(pickGoals)}</span>
+            </div>
+            <div className="mt-0.5 text-xs text-muted-foreground">
+              {paid ? "Paid ✓" : `${usd(buyInCents)} — settle up with your host`}
+            </div>
           </div>
-          <div className="mt-1 text-sm flex items-center gap-1.5">
-            <span className="text-muted-foreground">Your pick:</span>
-            {TEAMS_BY_ID[pickCand.teamId] && <Flag code={TEAMS_BY_ID[pickCand.teamId].flag} sm />}
-            <span className="font-semibold truncate">{pickCand.name}</span>
-          </div>
-          <div className="mt-0.5 text-xs text-muted-foreground">
-            {paid ? "Paid ✓" : `${usd(buyInCents)} — settle up with your host`}
-          </div>
+          <button
+            onClick={() => setPicking(true)}
+            className="shrink-0 text-xs font-medium px-3 py-1.5 rounded-lg border active:scale-[0.98] transition"
+            style={{ borderColor: GOLD, color: GOLD }}
+          >
+            Change
+          </button>
         </div>
-        <button
-          onClick={() => setPicking(true)}
-          className="shrink-0 text-xs font-medium px-3 py-1.5 rounded-lg border active:scale-[0.98] transition"
-          style={{ borderColor: GOLD, color: GOLD }}
-        >
-          Change
-        </button>
+        <Race scorers={topScorers} myPickId={pickId} />
       </div>,
     );
   }

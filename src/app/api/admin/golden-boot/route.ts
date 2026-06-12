@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { kvSet, KV } from "@/lib/db";
-import { setGoldenBootPaid, getAllGoldenBoot } from "@/lib/repo";
+import { setGoldenBootPaid, getAllGoldenBoot, getResults } from "@/lib/repo";
 import {
   getCandidates,
   getGoldenBootBuyInCents,
   getGoldenBootResult,
+  goldenBootLeader,
   goldenBootLockAt,
   resolveGoldenBoot,
+  setScorers,
 } from "@/lib/goldenBoot";
+import type { ScorerStanding } from "@/lib/footballData";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,13 +40,37 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   if (!authed(req)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const body = (await req.json()) as {
-    op: "result" | "paid" | "lock" | "roster";
+    op: "result" | "paid" | "lock" | "roster" | "scorers";
     pickId?: string;
     playerId?: string;
     paid?: boolean;
     lockAt?: string;
     candidates?: { id: string; name: string; teamId: string }[];
+    scorers?: ScorerStanding[];
   };
+
+  if (body.op === "scorers") {
+    // Live goal table from the poller. Store it, then auto-resolve the winner
+    // ONLY once the tournament is over (champion decided) and there's a sole
+    // top scorer — a tie at the top is left for manual settlement, like the
+    // real award. (Auto-match works because roster + scorers share fd player
+    // ids; on the shortlist fallback ids wouldn't match, so resolve by hand.)
+    const list = body.scorers;
+    if (!Array.isArray(list)) {
+      return NextResponse.json({ error: "scorers must be an array." }, { status: 400 });
+    }
+    setScorers(list);
+    let autoResolved: string | null = null;
+    const tournamentOver = (getResults().roundTeams.CHAMPION?.length ?? 0) > 0;
+    if (tournamentOver && !getGoldenBootResult()) {
+      const { leaders, tied } = goldenBootLeader(list);
+      if (leaders.length === 1 && !tied) {
+        kvSet(KV.goldenBootResult, leaders[0].id);
+        autoResolved = leaders[0].id;
+      }
+    }
+    return NextResponse.json({ ok: true, count: list.length, autoResolved });
+  }
 
   if (body.op === "roster") {
     // Cache the full tournament roster (from scripts/fetch-roster.mjs). Picker

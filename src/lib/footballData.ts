@@ -70,6 +70,48 @@ export function nameToId(name: string | null | undefined): string | null {
   return ALIASES[n] ?? BY_NAME[n] ?? null;
 }
 
+// ── Scorers (Golden Boot) ────────────────────────────────────────────────────
+// football-data /competitions/WC/scorers — the live goal table. Player ids here
+// are the SAME football-data ids the full roster is keyed on (scripts/fetch-
+// roster.mjs), so a pick's id matches a scorer's id directly.
+
+export interface FdScorer {
+  player: { id?: number; name: string | null };
+  team: { name: string | null };
+  goals: number | null;
+}
+
+export interface ScorerStanding {
+  /** football-data player id as a string — matches a roster candidate id. */
+  id: string;
+  name: string;
+  /** internal team id, or null if the team name didn't map. */
+  teamId: string | null;
+  goals: number;
+}
+
+/** Normalize the scorers feed into our standings, goals desc. */
+export function deriveScorers(scorers: FdScorer[]): {
+  standings: ScorerStanding[];
+  unmapped: string[];
+} {
+  const unmapped = new Set<string>();
+  const standings: ScorerStanding[] = [];
+  for (const s of scorers) {
+    if (s.player?.id == null || !s.player.name) continue;
+    const teamId = nameToId(s.team?.name);
+    if (s.team?.name && !teamId) unmapped.add(s.team.name);
+    standings.push({
+      id: String(s.player.id),
+      name: s.player.name,
+      teamId,
+      goals: s.goals ?? 0,
+    });
+  }
+  standings.sort((a, b) => b.goals - a.goals || a.name.localeCompare(b.name));
+  return { standings, unmapped: [...unmapped] };
+}
+
 export const STAGE_TO_ROUND: Record<string, KnockoutRound> = {
   LAST_32: "R32",
   LAST_16: "R16",

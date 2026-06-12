@@ -159,6 +159,7 @@ export const KV = {
   goldenBootLockAt: "golden_boot_lock_at", // ISO override; else derived from feed (first R32 kickoff)
   goldenBootResult: "golden_boot_result", // winning candidate id, set post-tournament
   goldenBootRoster: "golden_boot_roster", // cached BootCandidate[] — full roster or shortlist
+  goldenBootScorers: "golden_boot_scorers", // live ScorerStanding[] from the poller
 } as const;
 
 /** Hard lock gate — every bracket write must call this first. */

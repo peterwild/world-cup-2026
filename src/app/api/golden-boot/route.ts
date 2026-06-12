@@ -10,6 +10,8 @@ import {
   getCandidates,
   getGoldenBootBuyInCents,
   getGoldenBootResult,
+  getScorers,
+  goalsForPick,
   goldenBootLockAt,
   goldenBootLocked,
   goldenBootPot,
@@ -24,6 +26,7 @@ export async function GET() {
   const me = getGoldenBoot(id);
   const buyInCents = getGoldenBootBuyInCents();
   const all = getAllGoldenBoot();
+  const scorers = getScorers();
   return NextResponse.json({
     status: me?.status ?? null, // null = hasn't answered the prompt yet
     pickId: me?.pickId ?? null,
@@ -35,6 +38,9 @@ export async function GET() {
     result: getGoldenBootResult(),
     pot: goldenBootPot(all, buyInCents),
     participants: all.filter((e) => e.status === "in" && e.pickId).length,
+    // Live race: your pick's tally (null = hasn't scored) + the top of the board.
+    pickGoals: goalsForPick(scorers, me?.pickId ?? null),
+    topScorers: scorers.slice(0, 5),
   });
 }
 
