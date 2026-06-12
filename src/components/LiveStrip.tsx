@@ -145,7 +145,10 @@ function RootFor({ call }: { call: LiveCall }) {
   );
 }
 
-// ── FINISHED game: did your bracket pick come through? ───────────────────────
+// ── FINISHED game: did the team you wanted come through? ──────────────────────
+// Names the team you were rooting for so the result line reads on its own — a
+// bare 🎉 next to a score is ambiguous if you've forgotten who you were pulling
+// for. `rootId` is that team; the heart vs party emoji marks spirit vs bracket.
 function finishedVerdict(
   home: string,
   away: string,
@@ -153,21 +156,22 @@ function finishedVerdict(
   ag: number,
   back: BackDepth,
   spiritTeamId: string | null,
-): { emoji: string; label: string; tone: Tone } | null {
+): { emoji: string; rootId: string; verb: string; tone: Tone } | null {
   const leader = leaderOf(hg, ag);
   const want = backedSide(home, away, back);
   const spirit: Side | null = spiritTeamId === home ? "home" : spiritTeamId === away ? "away" : null;
 
   if (want) {
-    const heart = spirit ? ` ${leader === spirit ? "💗" : leader === "draw" ? "💓" : "💔"}` : "";
-    if (leader === want) return { emoji: "🎉", label: `your pick won${heart}`, tone: "good" };
-    if (leader === "draw") return { emoji: "😕", label: `your pick only drew${heart}`, tone: "neutral" };
-    return { emoji: "😞", label: `your pick lost${heart}`, tone: "bad" };
+    const rootId = want === "home" ? home : away;
+    if (leader === want) return { emoji: "🎉", rootId, verb: "won", tone: "good" };
+    if (leader === "draw") return { emoji: "😕", rootId, verb: "only drew", tone: "neutral" };
+    return { emoji: "😞", rootId, verb: "lost", tone: "bad" };
   }
   if (spirit) {
-    if (leader === spirit) return { emoji: "💗", label: "your spirit team won", tone: "good" };
-    if (leader === "draw") return { emoji: "💓", label: "your spirit team drew", tone: "neutral" };
-    return { emoji: "💔", label: "heartbroken", tone: "bad" };
+    const rootId = spirit === "home" ? home : away;
+    if (leader === spirit) return { emoji: "💗", rootId, verb: "won", tone: "good" };
+    if (leader === "draw") return { emoji: "💓", rootId, verb: "drew", tone: "neutral" };
+    return { emoji: "💔", rootId, verb: "lost", tone: "bad" };
   }
   return null; // no stake — stay quiet on the results list
 }
@@ -196,7 +200,8 @@ function LiveRow({
 
   return (
     <div className={`rounded-lg p-2 ${glow ? "scored-glow" : ""}`}>
-      <div className="flex items-center justify-between gap-2 text-sm">
+      {/* 1fr · auto · 1fr keeps the score dead-center no matter the name widths. */}
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-sm">
         <span className="flex items-center gap-1.5 min-w-0">
           <Flag code={home.flag} sm />
           <span className="truncate">{home.name}</span>
@@ -204,7 +209,7 @@ function LiveRow({
         {/* Score remounts on change (keyed) so the pop animation re-fires. */}
         <span
           key={`${g.homeGoals}-${g.awayGoals}`}
-          className="score-pop font-extrabold tabular-nums text-base px-2"
+          className="score-pop font-extrabold tabular-nums text-base px-2 text-center"
         >
           {g.homeGoals}–{g.awayGoals}
         </span>
@@ -213,28 +218,30 @@ function LiveRow({
           <Flag code={away.flag} sm />
         </span>
       </div>
-      <div className="mt-1 flex items-center justify-between gap-2 text-xs">
-        <span className="flex items-center gap-1.5 text-muted-foreground shrink-0">
+      {/* Everything about the game's state stacks centered under the score:
+          the clock, who to root for, and the odds swing. */}
+      <div className="mt-1 flex flex-col items-center gap-0.5 text-xs">
+        <span className="flex items-center gap-1.5 text-muted-foreground">
           <span className="live-dot" aria-hidden />
           <span className="tabular-nums">{minuteLabel(g)}</span>
         </span>
         <RootFor call={call} />
-      </div>
-      {showArrow && (
-        <div
-          className="mt-0.5 text-right text-xs tabular-nums"
-          title={`If the result you want lands, your odds to win the pool go to ${pct1(arrow.win)}.`}
-        >
-          <span className="text-muted-foreground">{pct1(baselineWin)} → </span>
-          <span
-            className="font-semibold"
-            style={{ color: arrow.win >= baselineWin ? "var(--pitch)" : "var(--destructive)" }}
+        {showArrow && (
+          <div
+            className="tabular-nums"
+            title={`If the result you want lands, your odds to win the pool go to ${pct1(arrow.win)}.`}
           >
-            {pct1(arrow.win)}
-          </span>
-          <span className="text-muted-foreground"> win odds</span>
-        </div>
-      )}
+            <span className="text-muted-foreground">{pct1(baselineWin)} → </span>
+            <span
+              className="font-semibold"
+              style={{ color: arrow.win >= baselineWin ? "var(--pitch)" : "var(--destructive)" }}
+            >
+              {pct1(arrow.win)}
+            </span>
+            <span className="text-muted-foreground"> win odds</span>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -252,32 +259,43 @@ function FinishedRow({
   const away = TEAMS_BY_ID[g.away];
   if (!home || !away) return null;
   const v = finishedVerdict(g.home, g.away, g.homeGoals, g.awayGoals, back, spiritTeamId);
+  const rootTeam = v ? TEAMS_BY_ID[v.rootId] : null;
 
   return (
-    <div className="flex items-center justify-between gap-2 text-xs py-0.5">
-      <span className="flex items-center gap-1.5 min-w-0 text-muted-foreground">
-        <Flag code={home.flag} sm />
-        <span className={`truncate ${g.winner === "home" ? "text-foreground font-medium" : ""}`}>
-          {home.name}
-        </span>
-      </span>
-      <span className="flex items-center gap-1.5 whitespace-nowrap">
-        {v && (
-          <span style={{ color: toneColor(v.tone) }} title={v.label}>
-            {v.emoji}
+    <div className="py-0.5">
+      {/* Match grid with the score dead-center, matching the live rows above. */}
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-xs">
+        <span className="flex items-center gap-1.5 min-w-0 text-muted-foreground">
+          <Flag code={home.flag} sm />
+          <span className={`truncate ${g.winner === "home" ? "text-foreground font-medium" : ""}`}>
+            {home.name}
           </span>
-        )}
-        <span className="tabular-nums text-muted-foreground">
+        </span>
+        <span className="tabular-nums text-muted-foreground whitespace-nowrap text-center">
           {g.homeGoals}–{g.awayGoals}
           <span className="ml-1 eyebrow">FT</span>
         </span>
-      </span>
-      <span className="flex items-center gap-1.5 min-w-0 justify-end text-muted-foreground">
-        <span className={`truncate ${g.winner === "away" ? "text-foreground font-medium" : ""}`}>
-          {away.name}
+        <span className="flex items-center gap-1.5 min-w-0 justify-end text-muted-foreground">
+          <span className={`truncate ${g.winner === "away" ? "text-foreground font-medium" : ""}`}>
+            {away.name}
+          </span>
+          <Flag code={away.flag} sm />
         </span>
-        <Flag code={away.flag} sm />
-      </span>
+      </div>
+      {/* Spell out who you were pulling for + how it went — centered under the
+          score so the 🎉/💔 isn't a lone, ambiguous emoji. */}
+      {v && rootTeam && (
+        <div
+          className="mt-0.5 flex items-center justify-center gap-1 text-xs"
+          style={{ color: toneColor(v.tone) }}
+        >
+          <span>{v.emoji}</span>
+          <span>Rooted for</span>
+          <Flag code={rootTeam.flag} sm />
+          <span className="font-medium">{rootTeam.name}</span>
+          <span>· {v.verb}</span>
+        </div>
+      )}
     </div>
   );
 }

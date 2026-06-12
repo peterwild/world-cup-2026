@@ -7,6 +7,7 @@ import { isLocked, kvGet, KV } from "@/lib/db";
 import { computeLeaderboard, formatUsd } from "@/lib/standings";
 import { PAYOUT_SPLIT, computePayouts } from "@/lib/tournament";
 import { currentRooting, getOdds } from "@/lib/odds";
+import { getLiveView } from "@/lib/liveScores";
 import { spiritPulse } from "@/lib/analytics";
 import { TEAMS_BY_ID } from "@/lib/teams";
 import { Flag } from "@/components/Flag";
@@ -47,10 +48,19 @@ export default async function LeaderboardPage() {
   const rooting = currentRooting(odds?.rooting ?? []);
   // Live games belong to the live strip (with their score + odds arrow), so
   // keep them out of the upcoming-games "who to root for" card — no double-show.
+  //
+  // The rooting snapshot's `status` is stale: it's whatever the cron last saw,
+  // so a game that kicked off after the snapshot still reads "TIMED" here. The
+  // authoritative "is it live right now" signal is the live feed, so we dedupe
+  // against its actual in-play pairs (cached + self-throttling — no extra call).
+  const liveView = await getLiveView();
+  const livePairs = new Set(liveView.live.map((g) => `${g.home}-${g.away}`));
   const isLiveFixture = (s: string) => s === "IN_PLAY" || s === "PAUSED";
+  const isLiveNow = (r: { fixture: { home: string; away: string; status: string } }) =>
+    isLiveFixture(r.fixture.status) || livePairs.has(`${r.fixture.home}-${r.fixture.away}`);
   const rootingUpcoming = {
-    games: rooting.games.filter((r) => !isLiveFixture(r.fixture.status)),
-    laterGames: rooting.laterGames.filter((r) => !isLiveFixture(r.fixture.status)),
+    games: rooting.games.filter((r) => !isLiveNow(r)),
+    laterGames: rooting.laterGames.filter((r) => !isLiveNow(r)),
   };
 
   // How deeply my bracket backs each team — the live strip's fallback "who to
