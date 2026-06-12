@@ -383,7 +383,7 @@ export function LiveStrip({
             <span className="live-dot" aria-hidden /> Live now
             {/* Free-tier feed runs a few minutes behind real life — say so, so a
                 stale-looking score doesn't read as broken. Only while live. */}
-            <span className="opacity-70">· Scores ~5 min delayed</span>
+            <span>· Scores ~5 min delayed</span>
           </>
         ) : (
           <>⚽ Today&apos;s results</>
