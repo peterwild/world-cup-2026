@@ -255,13 +255,15 @@
   0%, 100% { transform: scale(1); opacity: 1; }
   50% { transform: scale(0.7); opacity: 0.45; }
 }
-/* Halftime: a calm, static amber dot — the game's paused, not live (no pulse). */
+/* Halftime: a calm, static amber dot — the game's paused, not live (no pulse).
+   Pinned to a lighter amber-400 (not --gold, which skews burnt-orange in dark
+   mode) so it reads clearly distinct from the red live-dot. */
 .pause-dot {
   display: inline-block;
   width: 0.5rem;
   height: 0.5rem;
   border-radius: 9999px;
-  background: var(--gold);
+  background: #fbbf24;
 }
 /* Finished: a neutral, dimmed static dot — the match is over. */
 .done-dot {
