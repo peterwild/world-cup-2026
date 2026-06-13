@@ -159,11 +159,24 @@ export function deriveMatches(matches: FdMatch[]): { feed: MatchFeed; unmapped: 
     return x;
   };
 
-  const feed: MatchFeed = { played: [], upcoming: [], fetchedAt: new Date().toISOString() };
+  const feed: MatchFeed = { played: [], upcoming: [], knockout: [], fetchedAt: new Date().toISOString() };
   for (const m of matches) {
     const h = id(m.homeTeam.name);
     const a = id(m.awayTeam.name);
     if (!h || !a) continue; // TBD fixture — nothing to condition or root on
+
+    // Knockout fixtures (both teams known, any status) feed the bracket tree.
+    const koRound = STAGE_TO_ROUND[m.stage];
+    if (koRound) {
+      feed.knockout!.push({
+        // STAGE_TO_ROUND never yields CHAMPION (no stage maps to it).
+        round: koRound as Exclude<KnockoutRound, "CHAMPION">,
+        home: h,
+        away: a,
+        winner: m.score.winner === "HOME_TEAM" ? h : m.score.winner === "AWAY_TEAM" ? a : null,
+        status: m.status,
+      });
+    }
 
     if (m.stage === "GROUP_STAGE" && m.group && m.status === "FINISHED") {
       feed.played.push({

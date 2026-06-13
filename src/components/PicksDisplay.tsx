@@ -13,6 +13,7 @@ import type { DraftBracket } from "@/lib/bracketState";
 import type { Results } from "@/lib/scoring";
 import type { GroupId } from "@/lib/teams";
 import type { GroupStanding } from "@/lib/groupTables";
+import type { AssembledBracket } from "@/lib/knockoutBracket";
 import type { SpiritPulse } from "@/lib/analytics";
 import { BracketView } from "@/components/BracketView";
 import { BracketCanvas } from "@/components/BracketCanvas";
@@ -30,8 +31,10 @@ export function PicksDisplay(props: {
   showStatus: boolean;
   spiritPulse: SpiritPulse | null;
   groupTables: Record<GroupId, GroupStanding[]>;
+  bracket: AssembledBracket;
+  firstKickoffISO: string | null;
 }) {
-  const { draft, results, showStatus, spiritPulse, groupTables } = props;
+  const { draft, results, showStatus, spiritPulse, groupTables, bracket, firstKickoffISO } = props;
 
   const [mode, setMode] = useState<View>("list"); // the explicit toggle choice
   const [landscape, setLandscape] = useState(false);
@@ -90,6 +93,8 @@ export function PicksDisplay(props: {
 
       {view === "bracket" ? (
         <BracketCanvas
+          bracket={bracket}
+          firstKickoffISO={firstKickoffISO}
           draft={draft}
           results={results}
           showStatus={showStatus}

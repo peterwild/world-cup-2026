@@ -9,6 +9,8 @@ import { getOdds } from "@/lib/odds";
 import { spiritPulse } from "@/lib/analytics";
 import { getMatchFeed } from "@/lib/matches";
 import { allGroupTables } from "@/lib/groupTables";
+import { assembleBracket } from "@/lib/knockoutBracket";
+import { firstR32Kickoff } from "@/lib/goldenBoot";
 import { TopNav } from "@/components/TopNav";
 import { PicksDisplay } from "@/components/PicksDisplay";
 import { AiAssistedBadge } from "@/components/AiAssistedBadge";
@@ -35,8 +37,11 @@ export default async function PicksPage() {
   const pulse =
     odds && draft.spiritTeamId ? spiritPulse(draft.spiritTeamId, odds.teams, results) : null;
 
-  // Live group tables for the bracket view, from the games played so far.
-  const groupTables = allGroupTables(getMatchFeed()?.played ?? []);
+  // Live group tables + the real knockout bracket for the bracket view.
+  const feed = getMatchFeed();
+  const groupTables = allGroupTables(feed?.played ?? []);
+  const bracket = assembleBracket(feed?.knockout ?? [], results, draft);
+  const firstKickoffISO = firstR32Kickoff(feed ?? null);
 
   const finalists = draft.rounds.FINAL ?? [];
   const empty =
@@ -104,6 +109,8 @@ export default async function PicksPage() {
             showStatus={showStatus}
             spiritPulse={pulse}
             groupTables={groupTables}
+            bracket={bracket}
+            firstKickoffISO={firstKickoffISO}
           />
         </>
       )}

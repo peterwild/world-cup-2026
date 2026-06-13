@@ -8,6 +8,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { GroupId } from "./teams";
+import type { KnockoutRound } from "./tournament";
 import { kvGet, kvSet } from "./db";
 
 /** A finished group-stage match, in real home/away orientation. */
@@ -17,6 +18,16 @@ export interface PlayedGroupMatch {
   away: string;
   homeGoals: number;
   awayGoals: number;
+}
+
+/** A knockout fixture with both teams known (any status). Drives the bracket
+ *  tree: home/away are team ids, `winner` is set once decided. */
+export interface KoFixture {
+  round: Exclude<KnockoutRound, "CHAMPION">;
+  home: string;
+  away: string;
+  winner: string | null; // team id, or null until the match is decided
+  status: string; // SCHEDULED | TIMED | IN_PLAY | PAUSED | FINISHED
 }
 
 /** A not-yet-finished fixture with both teams known (TBD slots are skipped). */
@@ -35,6 +46,9 @@ export interface FeedFixture {
 export interface MatchFeed {
   played: PlayedGroupMatch[];
   upcoming: FeedFixture[];
+  /** Knockout fixtures with both teams known — the bracket tree's raw input.
+   *  Absent on feeds written before this field existed; read as []. */
+  knockout?: KoFixture[];
   fetchedAt: string; // ISO
 }
 
