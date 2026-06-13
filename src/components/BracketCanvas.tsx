@@ -45,7 +45,10 @@ export function BracketCanvas({
 
       {/* Group stage — live tables from the games played so far. */}
       <div>
-        <div className="eyebrow mb-2">Group stage · live tables</div>
+        <div className="eyebrow">Group stage · live tables</div>
+        <p className="text-[10px] text-muted-foreground mb-2 mt-0.5">
+          Team standings, not your pool score · P played · GD goal difference · Pts group points (3 win / 1 draw)
+        </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 landscape:grid-cols-3 gap-3">
           {GROUP_IDS.map((g) => (
             <GroupCard
