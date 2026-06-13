@@ -1,11 +1,22 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Turns football-data.org match data into our Results shape. Pure + testable.
 //
-// ⚠️ VERIFY WHEN LIVE: confirm (a) WC 2026 is in football-data's free tier,
-// (b) the team-name spellings below match the live feed (print `unmapped`),
-// (c) the stage strings (LAST_32 etc.). Group order here uses pts/GD/GF only —
-// FIFA's head-to-head tiebreaker isn't applied, so mid-tournament group order
-// is an estimate; it converges to correct once groups finish.
+// ✅ VERIFIED LIVE 2026-06-12 (USA–Paraguay, first WC live game we observed):
+//   • WC 2026 IS in the free tier; results AND live IN_PLAY scores both flow.
+//   • status enum seen: FINISHED, IN_PLAY, TIMED (full set per docs below).
+//   • when IN_PLAY the feed score trailed reality by only ~29s (lastUpdated),
+//     but `minute` is null on the free tier — we never get the match clock.
+//   • ⚠️ the free tier is SLOW to advance TIMED→IN_PLAY: it held this match at
+//     TIMED for ~50–90 min past real kickoff before flipping. The status
+//     workflow is forward-only (SCHEDULED→TIMED→IN_PLAY/PAUSED→FINISHED, never
+//     reverts — https://docs.football-data.org/general/v4/match.html), so a
+//     past-kickoff TIMED game is lag, not a halftime/revert. deriveLive trusts
+//     the clock over `status` for exactly this (see MATCH_WINDOW_MS).
+//
+// STILL VERIFY: (a) team-name spellings vs the live feed (print `unmapped`),
+// (b) the knockout stage strings (LAST_32 etc.) once we reach them. Group order
+// here uses pts/GD/GF only — FIFA's head-to-head tiebreaker isn't applied, so
+// mid-tournament group order is an estimate; it converges once groups finish.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { GROUP_IDS, TEAMS, type GroupId } from "./teams";
@@ -341,11 +352,11 @@ export interface LiveView {
 /** How long after kickoff a fixture could still plausibly be in progress —
  *  90' + halftime + stoppage + (knockout) extra time + penalties, with buffer.
  *  Inside this window, a non-finished game whose kickoff has passed is treated
- *  as live even if the feed still says SCHEDULED/TIMED: the free tier's status
- *  field lags and flaps (it'll briefly drop a live game back to TIMED), so we
- *  trust the clock over the feed rather than letting an in-progress game vanish.
- *  Beyond the window, a still-"scheduled" fixture is stale/postponed data, not a
- *  live game — drop it instead of showing a phantom match forever. */
+ *  as live even if the feed still says SCHEDULED/TIMED: the free tier is slow to
+ *  advance TIMED→IN_PLAY (observed ~50–90 min of lag on the first WC game), so
+ *  trusting the clock over `status` keeps an in-progress game on screen instead
+ *  of dropping it. Beyond the window, a still-"scheduled" fixture is stale or
+ *  postponed data, not a live game — drop it rather than show a phantom match. */
 const MATCH_WINDOW_MS = 180 * 60 * 1000;
 
 /** YYYY-MM-DD in US Eastern — the pool's wall-clock day for "finished today". */
@@ -417,8 +428,8 @@ export function deriveLive(matches: FdMatch[], now: Date = new Date()): {
       if (koMs > nowMs) {
         if (!nextKickoff || m.utcDate < nextKickoff) nextKickoff = m.utcDate;
       } else if (nowMs - koMs <= MATCH_WINDOW_MS && h && a) {
-        // Kickoff has passed but the feed still calls it scheduled — its status
-        // field lags real kickoff and flaps a live game back to TIMED. Trust the
+        // Kickoff has passed but the feed still calls it TIMED — the free tier
+        // is slow to advance TIMED→IN_PLAY (tens of minutes of lag). Trust the
         // clock: render it as live (with whatever score the feed carries) so a
         // game that's actually being played never drops off the strip. Still
         // unconfirmed by the feed, so keep the poll cadence hot.

@@ -283,17 +283,17 @@ test("deriveLive: kickoff passed but feed still TIMED → render as live (trust 
   assert.equal(view.nextKickoff, "2026-06-13T01:00:00Z"); // still future-only
 });
 
-test("deriveLive: feed flaps a live game back to TIMED mid-match → still rendered live", () => {
-  // Tonight's bug: ~40 min into USA–Paraguay the free tier reverted the game's
-  // status from IN_PLAY back to TIMED. The clock says it's in progress, so we
+test("deriveLive: feed slow to leave TIMED well past kickoff → still rendered live", () => {
+  // Tonight's bug: the free tier held USA–Paraguay at TIMED for ~50–90 min past
+  // kickoff before advancing to IN_PLAY. The clock says it's in progress, so we
   // keep it on the strip rather than letting it vanish into the kickoff cliff.
-  const now = new Date("2026-06-13T01:40:00Z"); // 40 min past kickoff
+  const now = new Date("2026-06-13T01:40:00Z"); // 40 min past kickoff, feed still TIMED
   const matches: FdMatch[] = [
     {
       id: 999,
       stage: "GROUP_STAGE",
       group: "GROUP_D",
-      status: "TIMED", // flapped back from IN_PLAY
+      status: "TIMED", // free tier hasn't advanced to IN_PLAY yet
       utcDate: "2026-06-13T01:00:00Z",
       minute: null,
       homeTeam: { name: "United States" },
