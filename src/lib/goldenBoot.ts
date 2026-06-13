@@ -17,7 +17,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { kvGet, kvSet, KV } from "./db";
-import { getMatchFeed, type MatchFeed } from "./matches";
+import { type MatchFeed } from "./matches";
 import { STAGE_TO_ROUND, type ScorerStanding } from "./footballData";
 
 export interface BootCandidate {
@@ -105,11 +105,16 @@ export function firstR32Kickoff(feed: MatchFeed | null): string | null {
   return r32Kickoffs[0] ?? null;
 }
 
+/** End of the group stage: the Round of 32 begins June 28, so picks close at the
+ *  end of June 27 (23:59 ET = 03:59Z on the 28th). Earlier than the first-R32
+ *  kickoff and known up front, so we don't wait on the feed to fill in. */
+export const GROUP_STAGE_LOCK_ISO = "2026-06-28T03:59:00Z";
+
 /** When Golden Boot picks lock. An explicit KV override wins; otherwise the
- *  feed-derived first-R32 kickoff. Null reads as "still open". */
-export function goldenBootLockAt(feed: MatchFeed | null = getMatchFeed()): string | null {
+ *  group-stage close above. Null reads as "still open". */
+export function goldenBootLockAt(): string | null {
   const override = kvGet<string | null>(KV.goldenBootLockAt, null);
-  return override ?? firstR32Kickoff(feed);
+  return override ?? GROUP_STAGE_LOCK_ISO;
 }
 
 export function goldenBootLocked(now: Date = new Date()): boolean {

@@ -291,6 +291,15 @@ export function setGoldenBootPaid(playerId: string, paid: boolean): void {
     .run(paid ? 1 : 0, playerId);
 }
 
+/** When this player last changed their opt-in status (UTC, sqlite datetime).
+ *  Used to time-box the "actually, I'm in" nudge after someone declines. */
+export function getGoldenBootStatusAt(playerId: string): string | null {
+  const r = db()
+    .prepare("SELECT updated_at, decided_at FROM golden_boot WHERE player_id = ?")
+    .get(playerId) as { updated_at: string | null; decided_at: string | null } | undefined;
+  return r?.updated_at ?? r?.decided_at ?? null;
+}
+
 export function getAllGoldenBoot(): GoldenBootEntry[] {
   const rows = db()
     .prepare("SELECT player_id, status, pick_id, paid FROM golden_boot")

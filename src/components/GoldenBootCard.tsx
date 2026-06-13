@@ -31,6 +31,8 @@ interface ScorerRow {
 
 interface GoldenBootView {
   status: "in" | "declined" | null;
+  /** UTC sqlite datetime of the last status change; null until they've decided. */
+  statusAt: string | null;
   pickId: string | null;
   paid: boolean;
   candidates: Candidate[];
@@ -45,6 +47,16 @@ interface GoldenBootView {
 }
 
 const SNOOZE_KEY = "gb_snoozed";
+
+// How long after a decline we keep offering "actually, I'm in" before the card
+// goes away entirely. Past this, an opted-out player sees nothing here.
+const DECLINE_NUDGE_MS = 48 * 60 * 60 * 1000;
+
+/** Parse a sqlite "YYYY-MM-DD HH:MM:SS" UTC timestamp to epoch ms (NaN-safe). */
+function utcMs(sqliteTs: string | null): number {
+  if (!sqliteTs) return NaN;
+  return Date.parse(sqliteTs.replace(" ", "T") + "Z");
+}
 
 function usd(cents: number): string {
   return (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
@@ -97,6 +109,9 @@ export function GoldenBootCard() {
   const [busy, setBusy] = useState(false);
   const [picking, setPicking] = useState(false); // picker open
   const [snoozed, setSnoozed] = useState(false);
+  // Render-time clock captured once (a 48h window doesn't need live ticking),
+  // kept out of render to stay pure.
+  const [now] = useState(() => Date.now());
 
   useEffect(() => {
     let alive = true;
@@ -258,8 +273,13 @@ export function GoldenBootCard() {
     );
   }
 
-  // ── Open: declined → unobtrusive, reversible ──
+  // ── Open: declined ──
+  // Keep a small reversible nudge for the first 48h (a change of heart is common
+  // right after opting out); after that, an opted-out player sees nothing.
   if (status === "declined") {
+    const declinedMs = utcMs(view.statusAt);
+    const withinNudge = Number.isNaN(declinedMs) || now - declinedMs < DECLINE_NUDGE_MS;
+    if (!withinNudge) return null;
     return shell(
       <div className="flex items-center justify-between gap-3 text-sm">
         <span className="text-muted-foreground">🥇 Golden Boot — sitting this one out.</span>

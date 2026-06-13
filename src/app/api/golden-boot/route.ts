@@ -5,6 +5,7 @@ import {
   setGoldenBootStatus,
   setGoldenBootPick,
   getAllGoldenBoot,
+  getGoldenBootStatusAt,
 } from "@/lib/repo";
 import {
   getCandidates,
@@ -29,6 +30,9 @@ export async function GET() {
   const scorers = getScorers();
   return NextResponse.json({
     status: me?.status ?? null, // null = hasn't answered the prompt yet
+    // When they last set that status — lets the UI retire the "actually, I'm in"
+    // nudge 48h after a decline instead of showing it for the whole tournament.
+    statusAt: me ? getGoldenBootStatusAt(id) : null,
     pickId: me?.pickId ?? null,
     paid: me?.paid ?? false,
     candidates: getCandidates(),
