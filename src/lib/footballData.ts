@@ -338,9 +338,15 @@ export interface LiveView {
   fetchedAt: string;
 }
 
-/** A scheduled kickoff this far in the past, still not IN_PLAY, means the feed
- *  is lagging the real kickoff — treat it as imminent-live for cadence. */
-const KICKOFF_GRACE_MS = 30 * 60 * 1000;
+/** How long after kickoff a fixture could still plausibly be in progress —
+ *  90' + halftime + stoppage + (knockout) extra time + penalties, with buffer.
+ *  Inside this window, a non-finished game whose kickoff has passed is treated
+ *  as live even if the feed still says SCHEDULED/TIMED: the free tier's status
+ *  field lags and flaps (it'll briefly drop a live game back to TIMED), so we
+ *  trust the clock over the feed rather than letting an in-progress game vanish.
+ *  Beyond the window, a still-"scheduled" fixture is stale/postponed data, not a
+ *  live game — drop it instead of showing a phantom match forever. */
+const MATCH_WINDOW_MS = 180 * 60 * 1000;
 
 /** YYYY-MM-DD in US Eastern — the pool's wall-clock day for "finished today". */
 function etDay(d: Date): string {
@@ -410,8 +416,24 @@ export function deriveLive(matches: FdMatch[], now: Date = new Date()): {
       const koMs = Date.parse(m.utcDate);
       if (koMs > nowMs) {
         if (!nextKickoff || m.utcDate < nextKickoff) nextKickoff = m.utcDate;
-      } else if (nowMs - koMs <= KICKOFF_GRACE_MS && h && a) {
-        // Kickoff passed, not IN_PLAY yet, teams known — the feed is lagging.
+      } else if (nowMs - koMs <= MATCH_WINDOW_MS && h && a) {
+        // Kickoff has passed but the feed still calls it scheduled — its status
+        // field lags real kickoff and flaps a live game back to TIMED. Trust the
+        // clock: render it as live (with whatever score the feed carries) so a
+        // game that's actually being played never drops off the strip. Still
+        // unconfirmed by the feed, so keep the poll cadence hot.
+        live.push({
+          id: m.id ?? null,
+          home: h,
+          away: a,
+          homeGoals: m.score.fullTime.home ?? 0,
+          awayGoals: m.score.fullTime.away ?? 0,
+          minute: m.minute ?? null,
+          status: "IN_PLAY",
+          stage: m.stage,
+          group: m.group ? (m.group.replace("GROUP_", "") as GroupId) : null,
+          utcDate: m.utcDate ?? null,
+        });
         awaitingKickoff = true;
       }
     }

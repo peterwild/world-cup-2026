@@ -253,7 +253,7 @@ test("deriveLive: nextKickoff is the soonest future fixture; TBD live games skip
   assert.equal(view.awaitingKickoff, false);
 });
 
-test("deriveLive: kickoff passed but feed still TIMED → awaitingKickoff (free-tier lag)", () => {
+test("deriveLive: kickoff passed but feed still TIMED → render as live (trust the clock)", () => {
   const now = new Date("2026-06-12T19:00:30Z"); // 30s past kickoff
   const matches: FdMatch[] = [
     {
@@ -276,13 +276,40 @@ test("deriveLive: kickoff passed but feed still TIMED → awaitingKickoff (free-
     },
   ];
   const { view } = deriveLive(matches, now);
-  assert.equal(view.live.length, 0); // not IN_PLAY yet, so not in live[]
-  assert.equal(view.awaitingKickoff, true); // but keep polling hot
+  assert.equal(view.live.length, 1); // kickoff passed + not finished → live
+  assert.equal(view.live[0].home, "can");
+  assert.equal(view.live[0].status, "IN_PLAY");
+  assert.equal(view.awaitingKickoff, true); // unconfirmed by feed → keep polling hot
   assert.equal(view.nextKickoff, "2026-06-13T01:00:00Z"); // still future-only
 });
 
-test("deriveLive: long-stale TIMED kickoff is not awaitingKickoff (beyond grace)", () => {
-  const now = new Date("2026-06-12T21:00:00Z"); // 2h past kickoff
+test("deriveLive: feed flaps a live game back to TIMED mid-match → still rendered live", () => {
+  // Tonight's bug: ~40 min into USA–Paraguay the free tier reverted the game's
+  // status from IN_PLAY back to TIMED. The clock says it's in progress, so we
+  // keep it on the strip rather than letting it vanish into the kickoff cliff.
+  const now = new Date("2026-06-13T01:40:00Z"); // 40 min past kickoff
+  const matches: FdMatch[] = [
+    {
+      id: 999,
+      stage: "GROUP_STAGE",
+      group: "GROUP_D",
+      status: "TIMED", // flapped back from IN_PLAY
+      utcDate: "2026-06-13T01:00:00Z",
+      minute: null,
+      homeTeam: { name: "United States" },
+      awayTeam: { name: "Paraguay" },
+      score: { winner: null, fullTime: { home: 1, away: 0 } },
+    },
+  ];
+  const { view } = deriveLive(matches, now);
+  assert.equal(view.live.length, 1);
+  assert.equal(view.live[0].home, "usa");
+  assert.equal(view.live[0].homeGoals, 1); // carries whatever score the feed has
+  assert.equal(view.awaitingKickoff, true);
+});
+
+test("deriveLive: truly stale TIMED kickoff beyond the match window is dropped", () => {
+  const now = new Date("2026-06-12T23:30:00Z"); // 4.5h past kickoff — game long over
   const matches: FdMatch[] = [
     {
       stage: "GROUP_STAGE",
@@ -295,5 +322,6 @@ test("deriveLive: long-stale TIMED kickoff is not awaitingKickoff (beyond grace)
     },
   ];
   const { view } = deriveLive(matches, now);
+  assert.equal(view.live.length, 0); // beyond window → not a phantom live game
   assert.equal(view.awaitingKickoff, false);
 });
