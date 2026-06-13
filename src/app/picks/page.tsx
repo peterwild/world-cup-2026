@@ -7,8 +7,10 @@ import { bracketComplete } from "@/lib/bracketState";
 import { hasAnyResults } from "@/lib/pickStatus";
 import { getOdds } from "@/lib/odds";
 import { spiritPulse } from "@/lib/analytics";
+import { getMatchFeed } from "@/lib/matches";
+import { allGroupTables } from "@/lib/groupTables";
 import { TopNav } from "@/components/TopNav";
-import { BracketView } from "@/components/BracketView";
+import { PicksDisplay } from "@/components/PicksDisplay";
 import { AiAssistedBadge } from "@/components/AiAssistedBadge";
 import { OddsCard } from "@/components/OddsCard";
 
@@ -32,6 +34,9 @@ export default async function PicksPage() {
   const myOdds = odds?.entries.find((e) => e.id === meId);
   const pulse =
     odds && draft.spiritTeamId ? spiritPulse(draft.spiritTeamId, odds.teams, results) : null;
+
+  // Live group tables for the bracket view, from the games played so far.
+  const groupTables = allGroupTables(getMatchFeed()?.played ?? []);
 
   const finalists = draft.rounds.FINAL ?? [];
   const empty =
@@ -93,11 +98,12 @@ export default async function PicksPage() {
               whose="Your odds"
             />
           )}
-          <BracketView
+          <PicksDisplay
             draft={draft}
             results={results}
             showStatus={showStatus}
             spiritPulse={pulse}
+            groupTables={groupTables}
           />
         </>
       )}

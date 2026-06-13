@@ -290,6 +290,12 @@
   100% { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0); }
 }
 
+/* One-time coachmark toast when a phone rotates into the bracket view. */
+@keyframes fadeInUp {
+  0% { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
 /* ── Lightweight markdown rendering inside AI chat bubbles ──────────────────── */
 .md > :first-child { margin-top: 0; }
 .md > :last-child { margin-bottom: 0; }
