@@ -17,8 +17,9 @@ import type { AssembledBracket } from "@/lib/knockoutBracket";
 import type { SpiritPulse } from "@/lib/analytics";
 import { BracketView } from "@/components/BracketView";
 import { BracketCanvas } from "@/components/BracketCanvas";
+import { PredictedSpine } from "@/components/PredictedSpine";
 
-type View = "list" | "bracket";
+type View = "list" | "bracket" | "path";
 const VIEW_KEY = "wc26-picks-view";
 const HINT_KEY = "wc26-bracket-hint-seen";
 // A rotated phone/tablet: landscape AND a touch (coarse) pointer — so a desktop,
@@ -44,7 +45,8 @@ export function PicksDisplay(props: {
   // mount — localStorage and matchMedia aren't available during SSR.
   useEffect(() => {
     const restore = () => {
-      if (localStorage.getItem(VIEW_KEY) === "bracket") setMode("bracket");
+      const saved = localStorage.getItem(VIEW_KEY);
+      if (saved === "bracket" || saved === "path") setMode(saved);
     };
     restore();
 
@@ -87,6 +89,7 @@ export function PicksDisplay(props: {
           >
             <ToggleButton label="List" active={view === "list"} onClick={() => choose("list")} />
             <ToggleButton label="Bracket" active={view === "bracket"} onClick={() => choose("bracket")} />
+            <ToggleButton label="Path" active={view === "path"} onClick={() => choose("path")} />
           </div>
         </div>
       )}
@@ -100,6 +103,8 @@ export function PicksDisplay(props: {
           showStatus={showStatus}
           groupTables={groupTables}
         />
+      ) : view === "path" ? (
+        <PredictedSpine draft={draft} results={results} showStatus={showStatus} />
       ) : (
         <BracketView
           draft={draft}
