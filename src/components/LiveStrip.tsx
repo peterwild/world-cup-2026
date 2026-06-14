@@ -150,19 +150,36 @@ function RootFor({ call }: { call: LiveCall }) {
 // ── FINISHED game: did the team you wanted come through? ──────────────────────
 // Names the team you were rooting for so the result line reads on its own — a
 // bare 🎉 next to a score is ambiguous if you've forgotten who you were pulling
-// for. `rootId` is that team; the heart vs party emoji marks spirit vs bracket.
+// for. `rootId` is that team (null = you were rooting for a draw); the heart vs
+// party emoji marks spirit vs bracket.
+//
+// The recommendation is whatever we told you at kickoff: the frozen odds arrow
+// when this game moved your pool odds, otherwise your deepest bracket pick, then
+// your spirit team. Same source as the live "Rooting for X" line, so what we
+// said before/during the game and the post-game verdict can't disagree.
 function finishedVerdict(
   home: string,
   away: string,
   hg: number,
   ag: number,
+  arrow: RootArrow | undefined,
   back: BackDepth,
   spiritTeamId: string | null,
-): { emoji: string; rootId: string; verb: string; tone: Tone } | null {
+): { emoji: string; rootId: string | null; verb: string; tone: Tone } | null {
   const leader = leaderOf(hg, ag);
-  const want = backedSide(home, away, back);
   const spirit: Side | null = spiritTeamId === home ? "home" : spiritTeamId === away ? "away" : null;
 
+  // Frozen odds recommendation wins when present — it's what drove the live line.
+  if (arrow) {
+    const want = arrow.outcome; // "home" | "away" | "draw"
+    const rootId = want === "draw" ? null : want === "home" ? home : away;
+    if (leader === want) return { emoji: "🎉", rootId, verb: want === "draw" ? "drew" : "won", tone: "good" };
+    if (want !== "draw" && leader === "draw")
+      return { emoji: "😕", rootId, verb: "only drew", tone: "neutral" };
+    return { emoji: "😞", rootId, verb: want === "draw" ? "didn't draw" : "lost", tone: "bad" };
+  }
+
+  const want = backedSide(home, away, back);
   if (want) {
     const rootId = want === "home" ? home : away;
     if (leader === want) return { emoji: "🎉", rootId, verb: "won", tone: "good" };
@@ -253,16 +270,19 @@ function FinishedRow({
   g,
   back,
   spiritTeamId,
+  arrows,
 }: {
   g: FinishedGame;
   back: BackDepth;
   spiritTeamId: string | null;
+  arrows: RootArrows;
 }) {
   const home = TEAMS_BY_ID[g.home];
   const away = TEAMS_BY_ID[g.away];
   if (!home || !away) return null;
-  const v = finishedVerdict(g.home, g.away, g.homeGoals, g.awayGoals, back, spiritTeamId);
-  const rootTeam = v ? TEAMS_BY_ID[v.rootId] : null;
+  const arrow = arrows[pairKey(g.home, g.away)];
+  const v = finishedVerdict(g.home, g.away, g.homeGoals, g.awayGoals, arrow, back, spiritTeamId);
+  const rootTeam = v && v.rootId ? TEAMS_BY_ID[v.rootId] : null;
 
   return (
     <div className="py-0.5">
@@ -292,15 +312,21 @@ function FinishedRow({
           <span className="done-dot" aria-hidden />
           <span>Full Time</span>
         </span>
-        {v && rootTeam && (
+        {v && (rootTeam || v.rootId === null) && (
           <div
             className="flex items-center justify-center flex-wrap gap-1"
             style={{ color: toneColor(v.tone) }}
           >
             <span>{v.emoji}</span>
             <span>rooted for</span>
-            <Flag code={rootTeam.flag} sm />
-            <span className="font-medium">{rootTeam.name}</span>
+            {rootTeam ? (
+              <>
+                <Flag code={rootTeam.flag} sm />
+                <span className="font-medium">{rootTeam.name}</span>
+              </>
+            ) : (
+              <span className="font-medium">🤝 a draw</span>
+            )}
             <span>· {v.verb}</span>
           </div>
         )}
@@ -423,6 +449,7 @@ export function LiveStrip({
                 g={g}
                 back={back}
                 spiritTeamId={spiritTeamId}
+                arrows={arrows}
               />
             ))}
           </div>

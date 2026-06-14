@@ -20,7 +20,7 @@
 //     visibly jittered with nothing actually decided.)
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { kvGet, kvSet } from "./db";
+import { kvGet, kvSet, KV } from "./db";
 import { getAllEntries, getResults } from "./repo";
 import { bracketComplete } from "./bracketState";
 import { getMatchFeed } from "./matches";
@@ -116,6 +116,60 @@ export function currentRooting(rooting: FixtureRooting[]): {
   return { games, laterGames };
 }
 
+// ─── Rooting lock: freeze "who to root for" at kickoff ───────────────────────
+// The conditional win-probs behind each rooting recommendation are re-drawn on
+// every recompute (the RNG seed re-rolls whenever any result lands), so a
+// borderline call could visibly flip mid-game — or, worse, read differently in
+// hindsight after full time ("you should've rooted for the other team"). We
+// pin each fixture's recommendation at kickoff: it tracks the latest sim while
+// the game is still upcoming, then freezes and never moves again.
+
+/** fixtureId ("home|away|utcDate") → the rooting frozen at its kickoff. */
+export type RootingLock = Record<string, FixtureRooting>;
+
+/** Drop locked fixtures more than this past kickoff — bounds the kv row. */
+const LOCK_PRUNE_MS = WATCH_AHEAD_MS; // 48h
+
+export function getRootingLock(): RootingLock {
+  return kvGet<RootingLock>(KV.rootingLock, {});
+}
+
+/**
+ * Freeze each fixture's rooting at kickoff. Pure (testable): given the previous
+ * lock, the fresh sim rooting, and `now`, return the rooting to SHOW plus the
+ * lock to PERSIST. A fixture whose kickoff has passed serves its last
+ * pre-kickoff value; one still upcoming (or first seen) takes the fresh value
+ * and (re)locks it. Finished games that have left the live watch window are
+ * carried forward (until pruned) so the finished-game verdict can read them.
+ */
+export function mergeRootingLock(
+  prevLock: RootingLock,
+  fresh: FixtureRooting[],
+  now: number,
+): { merged: FixtureRooting[]; nextLock: RootingLock } {
+  const nextLock: RootingLock = {};
+  // Carry forward still-relevant locked fixtures (incl. ones no longer in the
+  // live sim because they finished and left the watch window).
+  for (const [id, r] of Object.entries(prevLock)) {
+    if (Date.parse(r.fixture.kickoff) > now - LOCK_PRUNE_MS) nextLock[id] = r;
+  }
+  const merged = fresh.map((r) => {
+    const kicked = Date.parse(r.fixture.kickoff) <= now;
+    const locked = prevLock[r.fixture.id];
+    if (kicked && locked) {
+      // Frozen: serve (and keep) the last pre-kickoff value.
+      nextLock[r.fixture.id] = locked;
+      return locked;
+    }
+    // Still upcoming, or first sighting — take fresh and (re)lock. Locking on
+    // first sight covers a fixture that only appears after kickoff (feed lag),
+    // so even then it can't flip on subsequent recomputes.
+    nextLock[r.fixture.id] = r;
+    return r;
+  });
+  return { merged, nextLock };
+}
+
 /** Re-run the sim and cache it; no-op when inputs are unchanged (unless
  *  forced). Returns the live snapshot either way. */
 export function recomputeOdds(force = false): { snapshot: OddsSnapshot; recomputed: boolean } {
@@ -150,6 +204,13 @@ export function recomputeOdds(force = false): { snapshot: OddsSnapshot; recomput
     playedGroupMatches: played,
     watch,
   });
+
+  // Freeze each fixture's rooting at kickoff (see mergeRootingLock) so the
+  // recommendation can't flip once a game is underway or over.
+  const { merged, nextLock } = mergeRootingLock(getRootingLock(), sim.rooting, Date.now());
+  sim.rooting = merged;
+  kvSet(KV.rootingLock, nextLock);
+
   const snapshot: OddsSnapshot = {
     ...sim,
     computedAt: new Date().toISOString(),

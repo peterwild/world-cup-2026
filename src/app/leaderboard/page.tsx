@@ -6,7 +6,7 @@ import { backingDepth } from "@/lib/bracketState";
 import { isLocked, kvGet, KV } from "@/lib/db";
 import { computeLeaderboard, formatUsd } from "@/lib/standings";
 import { PAYOUT_SPLIT, computePayouts } from "@/lib/tournament";
-import { currentRooting, getOdds } from "@/lib/odds";
+import { currentRooting, getOdds, getRootingLock } from "@/lib/odds";
 import { getLiveView } from "@/lib/liveScores";
 import { spiritPulse } from "@/lib/analytics";
 import { TEAMS_BY_ID } from "@/lib/teams";
@@ -70,10 +70,13 @@ export default async function LeaderboardPage() {
 
   // Per-game rooting recommendation for ME, keyed by real home-away orientation:
   // the result that most improves my pool odds + that win prob. Drives the live
-  // strip's "Root for X" headline and the 46% → 49% swing. Only meaningful games
-  // (the result actually moves my odds) get an entry.
+  // strip's "Root for X" headline + the 46% → 49% swing, AND the finished-game
+  // verdict — so all three read the same recommendation. Sourced from the
+  // kickoff-frozen rooting lock (a superset of the live snapshot that also
+  // retains games which already finished and left the watch window). Only
+  // meaningful games (the result actually moves my odds) get an entry.
   const myArrows: Record<string, { outcome: "home" | "away" | "draw"; win: number }> = {};
-  for (const r of odds?.rooting ?? []) {
+  for (const r of odds ? Object.values(getRootingLock()) : []) {
     const mine = r.outcomes.filter((o) => o.winProb[meId] !== undefined);
     if (mine.length === 0) continue;
     let best = mine[0];

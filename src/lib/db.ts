@@ -154,6 +154,7 @@ export const KV = {
   groupName: "group_name",
   groupPasscode: "group_passcode",
   results: "results", // the actual tournament outcomes (Results JSON), set by the poller/admin
+  rootingLock: "rooting_lock", // per-fixture rooting frozen at kickoff (Record<fixtureId, FixtureRooting>)
   // ── Golden Boot side bet ──
   goldenBootBuyInCents: "golden_boot_buy_in_cents",
   goldenBootLockAt: "golden_boot_lock_at", // ISO override; else derived from feed (first R32 kickoff)
