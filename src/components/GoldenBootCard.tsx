@@ -161,8 +161,12 @@ export function GoldenBootCard() {
   const pickCand = candidates.find((c) => c.id === pickId) ?? null;
   const resultCand = result ? candidates.find((c) => c.id === result) ?? null : null;
 
-  // Bet is over and this player never joined → nothing to show.
-  if (locked && status === null && !result) return null;
+  // Only someone opted in WITH a pick is actually in the pot.
+  const isParticipant = status === "in" && !!pickId;
+
+  // Once picks lock, the widget belongs to participants only. Everyone else —
+  // declined, never decided, or opted in but never picked — sees nothing.
+  if (locked && !isParticipant) return null;
 
   const shell = (children: React.ReactNode) => (
     <section
@@ -173,10 +177,9 @@ export function GoldenBootCard() {
     </section>
   );
 
-  // ── Resolved: show this player's outcome ──
+  // ── Resolved: show this player's outcome (only participants reach here) ──
   if (result && resultCand) {
-    const won = status === "in" && pickId === result;
-    const inPool = status === "in" && !!pickId;
+    const won = pickId === result;
     return shell(
       <div>
         <div className="eyebrow" style={{ color: GOLD }}>
@@ -192,24 +195,22 @@ export function GoldenBootCard() {
         <div className="mt-1 text-sm font-medium">
           {won
             ? `🎉 You called it — ${usd(view.pot / Math.max(1, view.participants))} (split among correct picks).`
-            : inPool
-              ? "Not your pick this time."
-              : "You sat this one out."}
+            : "Not your pick this time."}
         </div>
         <Race scorers={topScorers} myPickId={pickId} />
       </div>,
     );
   }
 
-  // ── Locked, pre-result: read-only + live race ──
+  // ── Locked, pre-result: read-only + live race (only participants reach here) ──
   if (locked) {
     return shell(
       <div>
         <div className="eyebrow" style={{ color: GOLD }}>
           🥇 Golden Boot · locked · {usd(view.pot)} pot
         </div>
-        <div className="mt-1 text-sm">
-          {status === "in" && pickCand ? (
+        {pickCand && (
+          <div className="mt-1 text-sm">
             <span className="flex items-center gap-1.5">
               <span className="text-muted-foreground">Your pick:</span>
               {TEAMS_BY_ID[pickCand.teamId] && <Flag code={TEAMS_BY_ID[pickCand.teamId].flag} sm />}
@@ -218,10 +219,8 @@ export function GoldenBootCard() {
                 {goalsLabel(pickGoals)} · {paid ? "paid ✓" : "payment pending"}
               </span>
             </span>
-          ) : (
-            <span className="text-muted-foreground">Picks are closed. You&apos;re not in this pot.</span>
-          )}
-        </div>
+          </div>
+        )}
         <Race scorers={topScorers} myPickId={pickId} />
       </div>,
     );
