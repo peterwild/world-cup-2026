@@ -82,23 +82,9 @@ export function OddsCard({
       className="mt-3 card-surface rounded-xl p-3 border border-border"
       title={`Odds powered by a ${sims.toLocaleString()}-run Monte Carlo simulation. Updated live as games are played.`}
     >
-      <div className="eyebrow mb-2 flex items-center justify-between gap-2">
-        <span>
-          📊 {whose}
-          {computedAt && <> · <UpdatedAgo computedAt={computedAt} /></>}
-        </span>
-        {pending && (
-          <span
-            className="inline-flex items-center gap-1 whitespace-nowrap"
-            style={{ color: "var(--muted-foreground)" }}
-          >
-            <span
-              className="inline-block w-1.5 h-1.5 rounded-full animate-pulse"
-              style={{ background: "var(--gold)" }}
-            />
-            {pending}
-          </span>
-        )}
+      <div className="eyebrow mb-2">
+        📊 {whose}
+        {computedAt && <> · <UpdatedAgo computedAt={computedAt} pending={!!pending} /></>}
       </div>
       <div className="grid grid-cols-3 gap-2 text-center">
         <div>

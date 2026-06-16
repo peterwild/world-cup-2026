@@ -18,12 +18,23 @@ function ago(fromIso: string, now: number): string {
   return `${hrs}h ago`;
 }
 
-export function UpdatedAgo({ computedAt }: { computedAt: string }) {
+export function UpdatedAgo({
+  computedAt,
+  pending = false,
+}: {
+  computedAt: string;
+  /** A live/just-kicked-off result the odds haven't folded in yet. When set, the
+   *  freshness text pulses gently — the only "an update is coming" signal we keep. */
+  pending?: boolean;
+}) {
   // Re-render every 30s so "4m ago" stays current without a reload.
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 30_000);
     return () => clearInterval(t);
   }, []);
+  if (pending) {
+    return <span className="animate-pulse">Updated {ago(computedAt, now)}</span>;
+  }
   return <>Updated {ago(computedAt, now)}</>;
 }
