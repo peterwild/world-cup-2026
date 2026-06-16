@@ -353,6 +353,11 @@ export default async function LeaderboardPage() {
                 ) : (
                   !showPayout && <div className="eyebrow">pts</div>
                 )}
+                {rowOdds && rowDelta && Math.abs(rowDelta.winProbDelta) >= 0.005 && (
+                  <div className="text-[10px] text-muted-foreground truncate max-w-[9rem] ml-auto">
+                    {rowDelta.drivers.length > 0 ? rowDelta.drivers[0] : "field shifted"}
+                  </div>
+                )}
               </div>
               {/* Whole row is the link post-lock; a chevron is the only cue
                   (no caption + no hover on mobile). Pre-lock the row is dimmed

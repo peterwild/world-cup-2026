@@ -25,7 +25,7 @@ function moved(delta: EntryDelta): boolean {
 /** The one-line "why your odds moved" explanation. Drivers are ground truth;
  *  when none of the player's own teams resolved, the move came from the field
  *  shifting around them — say that rather than invent a personal reason. */
-function DeltaLine({ delta }: { delta: EntryDelta }) {
+function DeltaLine({ delta, possessive }: { delta: EntryDelta; possessive: string }) {
   const up = delta.winProbDelta > 0 || (delta.winProbDelta === 0 && delta.pointsDelta > 0);
   const flat = delta.winProbDelta === 0 && delta.pointsDelta === 0 && delta.drivers.length === 0;
   const tone = flat ? "var(--muted-foreground)" : up ? "var(--pitch)" : "var(--destructive)";
@@ -40,7 +40,7 @@ function DeltaLine({ delta }: { delta: EntryDelta }) {
     delta.drivers.length > 0
       ? delta.drivers.join(", ")
       : up
-        ? "the field shifted your way"
+        ? `the field shifted ${possessive} way`
         : "the field shifted";
 
   return (
@@ -65,6 +65,7 @@ export function OddsCard({
   delta,
   computedAt,
   pending,
+  possessive = "your",
 }: {
   entry: EntryOdds;
   sims: number;
@@ -76,6 +77,8 @@ export function OddsCard({
   computedAt?: string;
   /** A live/just-kicked-off game whose result isn't folded in yet. */
   pending?: string | null;
+  /** Inline possessive for the delta reason — "your" or "Stephanie's". */
+  possessive?: string;
 }) {
   return (
     <section
@@ -102,7 +105,7 @@ export function OddsCard({
           <div className="eyebrow">expected points</div>
         </div>
       </div>
-      {delta && moved(delta) && <DeltaLine delta={delta} />}
+      {delta && moved(delta) && <DeltaLine delta={delta} possessive={possessive} />}
     </section>
   );
 }
