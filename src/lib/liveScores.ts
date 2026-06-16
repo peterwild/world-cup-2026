@@ -14,7 +14,10 @@
 // degrades to empty rather than erroring.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { deriveLive, type LiveView } from "./footballData";
+import { deriveLive, deriveMatches, deriveResults, type LiveView } from "./footballData";
+import { getResults, setResults } from "./repo";
+import { setMatchFeed } from "./matches";
+import { recomputeOdds } from "./odds";
 
 const ENDPOINT = "https://api.football-data.org/v4/competitions/WC/matches";
 
@@ -31,6 +34,54 @@ const EMPTY: LiveView = { live: [], finishedToday: [], nextKickoff: null, awaiti
 
 let cache: { view: LiveView; expiresAt: number } | null = null;
 let inflight: Promise<LiveView> | null = null;
+
+// ── Event-driven odds ────────────────────────────────────────────────────────
+// The box already holds the FULL feed here, ~45s fresh while a game is live (the
+// live-scores poll). So instead of waiting up to 20 min for the GitHub cron to
+// notice a result, derive the same AUTHORITATIVE results/feed the cron would and
+// recompute odds the instant something resolves. Identical deriveResults to the
+// cron, so a later cron pass just hash-skips — no conflict, the cron stays as the
+// backstop (and still owns the golden-boot scorers call it makes separately).
+//
+// This is demand-driven: it only fires while someone's hitting /api/live or the
+// leaderboard. That's exactly right — during a live game people are watching, so
+// odds update within a poll (~45s) of the whistle; when nobody's looking the box
+// idles and the cron is the (slower) safety net. Nobody needs instant odds for a
+// game nobody's watching.
+let lastResultsJson: string | null = null;
+function syncOddsFromFeed(matches: Parameters<typeof deriveLive>[0]): void {
+  try {
+    // Keep the match feed fresh so the watch window / live badges / rooting
+    // track real status (cheap KV write; fetchedAt-only churn doesn't move the
+    // recompute hash, which keys off played + watched-fixture status).
+    const { feed } = deriveMatches(matches);
+    setMatchFeed({ ...feed, fetchedAt: new Date().toISOString() });
+
+    // Authoritative results: write only when they actually changed — that change
+    // IS the event (a match resolved). Cache the last JSON in-process so we don't
+    // re-serialize getResults() against itself every idle poll.
+    const { results } = deriveResults(matches);
+    const json = JSON.stringify(results);
+    if (lastResultsJson === null) lastResultsJson = JSON.stringify(getResults());
+    if (json !== lastResultsJson) {
+      setResults(results);
+      lastResultsJson = json;
+    }
+
+    // recomputeOdds hash-guards internally (results + watch window + entry set),
+    // so the ~1s sim only runs when something moved — a few times per match day.
+    // Deferred off the live-scores response path so /api/live flushes first.
+    setImmediate(() => {
+      try {
+        recomputeOdds();
+      } catch (err) {
+        console.warn("[liveScores] deferred recomputeOdds failed:", (err as Error).message);
+      }
+    });
+  } catch (err) {
+    console.warn("[liveScores] syncOddsFromFeed failed (non-fatal):", (err as Error).message);
+  }
+}
 
 /** Adaptive cadence from what the latest fetch showed. */
 function ttlFor(view: LiveView): number {
@@ -92,8 +143,12 @@ async function refresh(): Promise<LiveView> {
   // never legitimately returns zero. Hold rather than wipe the strip.
   if (!Array.isArray(matches) || matches.length === 0) return holdLastGood();
 
-  const { view } = deriveLive(matches as Parameters<typeof deriveLive>[0]);
+  const fdMatches = matches as Parameters<typeof deriveLive>[0];
+  const { view } = deriveLive(fdMatches);
   cache = { view, expiresAt: Date.now() + ttlFor(view) };
+  // Event-driven odds: same feed, no extra football-data call. Recompute fires
+  // (hash-guarded) within a poll of any result landing. See syncOddsFromFeed.
+  syncOddsFromFeed(fdMatches);
   return view;
 }
 
