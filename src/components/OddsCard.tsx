@@ -1,6 +1,6 @@
 import type { EntryOdds } from "@/lib/analytics";
 import type { EntryDelta } from "@/lib/oddsDelta";
-import { OddsFreshness } from "./OddsFreshness";
+import { UpdatedAgo } from "./OddsFreshness";
 
 /** "12%"; tiny-but-alive probabilities round to "<1%" instead of a dead "0%". */
 export function pct(p: number): string {
@@ -82,7 +82,21 @@ export function OddsCard({
       className="mt-3 card-surface rounded-xl p-3 border border-border"
       title={`Odds powered by a ${sims.toLocaleString()}-run Monte Carlo simulation. Updated live as games are played.`}
     >
-      <div className="eyebrow mb-2">📊 {whose} · updated live</div>
+      <div className="eyebrow mb-2 flex items-center justify-between gap-2">
+        <span>
+          📊 {whose}
+          {computedAt && <> · <UpdatedAgo computedAt={computedAt} /></>}
+        </span>
+        {pending && (
+          <span
+            className="inline-flex items-center gap-1 rounded-full px-2 py-0.5"
+            style={{ background: "var(--destructive)", color: "white", opacity: 0.85 }}
+          >
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+            {pending}
+          </span>
+        )}
+      </div>
       <div className="grid grid-cols-3 gap-2 text-center">
         <div>
           <div className="text-lg font-bold tabular-nums">{pct(entry.winProb)}</div>
@@ -100,7 +114,6 @@ export function OddsCard({
         </div>
       </div>
       {delta && moved(delta) && <DeltaLine delta={delta} />}
-      {computedAt && <OddsFreshness computedAt={computedAt} pending={pending} />}
     </section>
   );
 }
