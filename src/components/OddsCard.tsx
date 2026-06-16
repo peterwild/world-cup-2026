@@ -1,9 +1,58 @@
 import type { EntryOdds } from "@/lib/analytics";
+import type { EntryDelta } from "@/lib/oddsDelta";
+import { OddsFreshness } from "./OddsFreshness";
 
 /** "12%"; tiny-but-alive probabilities round to "<1%" instead of a dead "0%". */
 export function pct(p: number): string {
   if (p > 0 && p < 0.005) return "<1%";
   return `${Math.round(p * 100)}%`;
+}
+
+/** A signed win-probability move as percentage points: "+3%", "−2%", "<1%".
+ *  Below half a point reads as no move. */
+function fmtWinDelta(d: number): string {
+  const pts = Math.round(d * 100);
+  if (pts === 0) return d > 0 ? "<1%" : d < 0 ? "−<1%" : "0%";
+  return `${pts > 0 ? "+" : "−"}${Math.abs(pts)}%`;
+}
+
+/** True when a delta is worth a line — a real win-prob move, a points change,
+ *  or at least one named driver. */
+function moved(delta: EntryDelta): boolean {
+  return Math.abs(delta.winProbDelta) >= 0.005 || delta.pointsDelta !== 0 || delta.drivers.length > 0;
+}
+
+/** The one-line "why your odds moved" explanation. Drivers are ground truth;
+ *  when none of the player's own teams resolved, the move came from the field
+ *  shifting around them — say that rather than invent a personal reason. */
+function DeltaLine({ delta }: { delta: EntryDelta }) {
+  const up = delta.winProbDelta > 0 || (delta.winProbDelta === 0 && delta.pointsDelta > 0);
+  const flat = delta.winProbDelta === 0 && delta.pointsDelta === 0 && delta.drivers.length === 0;
+  const tone = flat ? "var(--muted-foreground)" : up ? "var(--pitch)" : "var(--destructive)";
+  const arrow = flat ? "→" : up ? "↑" : "↓";
+
+  const stats = [
+    Math.abs(delta.winProbDelta) >= 0.005 ? `${fmtWinDelta(delta.winProbDelta)} to win` : null,
+    delta.pointsDelta !== 0 ? `${delta.pointsDelta > 0 ? "+" : "−"}${Math.abs(delta.pointsDelta)} pts` : null,
+  ].filter(Boolean);
+
+  const reason =
+    delta.drivers.length > 0
+      ? delta.drivers.join(", ")
+      : up
+        ? "the field shifted your way"
+        : "the field shifted";
+
+  return (
+    <div className="mt-2 text-xs flex items-start gap-1.5" style={{ color: tone }}>
+      <span aria-hidden className="font-bold leading-5">{arrow}</span>
+      <span className="leading-5">
+        {stats.length > 0 && <span className="font-semibold tabular-nums">{stats.join(" · ")}</span>}
+        {stats.length > 0 && " — "}
+        {reason}
+      </span>
+    </div>
+  );
 }
 
 // The Monte Carlo odds card — shared by the leaderboard ("Your odds") and the
@@ -13,11 +62,20 @@ export function OddsCard({
   entry,
   sims,
   whose,
+  delta,
+  computedAt,
+  pending,
 }: {
   entry: EntryOdds;
   sims: number;
   /** Card title, e.g. "Your odds" / "Dejan's odds". */
   whose: string;
+  /** Why these odds moved since the last recompute (lib/oddsDelta). */
+  delta?: EntryDelta;
+  /** ISO time the snapshot was computed — drives the "updated X ago" line. */
+  computedAt?: string;
+  /** A live/just-kicked-off game whose result isn't folded in yet. */
+  pending?: string | null;
 }) {
   return (
     <section
@@ -41,6 +99,8 @@ export function OddsCard({
           <div className="eyebrow">expected points</div>
         </div>
       </div>
+      {delta && moved(delta) && <DeltaLine delta={delta} />}
+      {computedAt && <OddsFreshness computedAt={computedAt} pending={pending} />}
     </section>
   );
 }

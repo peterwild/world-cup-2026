@@ -56,6 +56,17 @@ export default async function LeaderboardPage() {
   // against its actual in-play pairs (cached + self-throttling — no extra call).
   const liveView = await getLiveView();
   const livePairs = new Set(liveView.live.map((g) => `${g.home}-${g.away}`));
+  // Pending = a result the odds haven't folded in yet. A live game's final
+  // hasn't landed; a game whose kickoff just passed (awaitingKickoff) is the
+  // feed catching up. Either way the odds correctly lag — say so instead of
+  // showing silent stale numbers right when people check after a game.
+  const oddsPending = odds
+    ? liveView.live.length > 0
+      ? "Live — odds update when it ends"
+      : liveView.awaitingKickoff
+        ? "Kicking off — odds update after"
+        : null
+    : null;
   const isLiveFixture = (s: string) => s === "IN_PLAY" || s === "PAUSED";
   const isLiveNow = (r: { fixture: { home: string; away: string; status: string } }) =>
     isLiveFixture(r.fixture.status) || livePairs.has(`${r.fixture.home}-${r.fixture.away}`);
@@ -165,12 +176,16 @@ export default async function LeaderboardPage() {
         </section>
       )}
 
-      {/* Your odds — Monte Carlo, refreshed as results land */}
+      {/* Your odds — Monte Carlo, refreshed as results land. The delta line +
+          freshness explain what moved you since the last recompute. */}
       {odds && myOdds && (
         <OddsCard
           entry={myOdds}
           sims={odds.sims}
           whose="Your odds"
+          delta={odds.deltas[meId]}
+          computedAt={odds.computedAt}
+          pending={oddsPending}
         />
       )}
 
@@ -249,6 +264,7 @@ export default async function LeaderboardPage() {
           const isMe = s.player.id === meId;
           const showPayout = board.hasResults && s.payoutCents > 0;
           const rowOdds = oddsById.get(s.player.id);
+          const rowDelta = odds?.deltas[s.player.id];
           const pulse =
             results && odds && s.spiritTeamId && !s.spiritChampion
               ? spiritPulse(s.spiritTeamId, odds.teams, results)
@@ -316,7 +332,22 @@ export default async function LeaderboardPage() {
                   </div>
                 )}
                 {rowOdds ? (
-                  <div className="text-xs text-muted-foreground tabular-nums">
+                  <div className="text-xs text-muted-foreground tabular-nums flex items-center justify-end gap-0.5">
+                    {rowDelta && Math.abs(rowDelta.winProbDelta) >= 0.005 && (
+                      <span
+                        aria-hidden
+                        title={
+                          rowDelta.drivers.length > 0
+                            ? rowDelta.drivers.join(", ")
+                            : "the field shifted"
+                        }
+                        style={{
+                          color: rowDelta.winProbDelta > 0 ? "var(--pitch)" : "var(--destructive)",
+                        }}
+                      >
+                        {rowDelta.winProbDelta > 0 ? "↑" : "↓"}
+                      </span>
+                    )}
                     {pct(rowOdds.winProb)} win
                   </div>
                 ) : (

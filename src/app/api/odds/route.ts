@@ -13,6 +13,8 @@ export async function GET() {
   if (!isLocked()) return NextResponse.json({ available: false });
   const snapshot = getOdds();
   if (!snapshot) return NextResponse.json({ available: false });
-  const pub = { ...snapshot, inputHash: undefined };
+  // Strip server-only bookkeeping: inputHash (skip key) and actual (the diff
+  // baseline for the next recompute — live results ship via /api/live).
+  const pub = { ...snapshot, inputHash: undefined, actual: undefined };
   return NextResponse.json({ available: true, ...pub });
 }

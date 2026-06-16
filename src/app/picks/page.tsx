@@ -101,6 +101,8 @@ export default async function PicksPage() {
               entry={myOdds}
               sims={odds.sims}
               whose="Your odds"
+              delta={odds.deltas[meId]}
+              computedAt={odds.computedAt}
             />
           )}
           <PicksDisplay

@@ -63,6 +63,8 @@ export default async function PlayerBracketPage({
           entry={theirOdds}
           sims={odds.sims}
           whose={`${firstName}'s odds`}
+          delta={odds.deltas[id]}
+          computedAt={odds.computedAt}
         />
       )}
       {/* The scouting report: same conditional buckets, their bracket's

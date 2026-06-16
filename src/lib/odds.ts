@@ -25,6 +25,8 @@ import { getAllEntries, getResults } from "./repo";
 import { bracketComplete } from "./bracketState";
 import { getMatchFeed } from "./matches";
 import { STAGE_TO_ROUND } from "./footballData";
+import { emptyResults, type Results } from "./scoring";
+import { buildEntryDeltas, type EntryDelta } from "./oddsDelta";
 import {
   simulatePool,
   type FixtureRooting,
@@ -47,7 +49,17 @@ const WATCH_CAP = 12;
 
 export interface OddsSnapshot extends PoolSimulation {
   computedAt: string; // ISO
+  /** computedAt of the snapshot this one replaced — "what moved since…". Null
+   *  on the very first recompute (no prior to diff against). */
+  prevComputedAt: string | null;
   inputHash: number;
+  /** id → why this entry's odds moved vs the previous snapshot (lib/oddsDelta).
+   *  Empty on the first recompute after this feature shipped (no baseline). */
+  deltas: Record<string, EntryDelta>;
+  /** The decided Results this snapshot was computed against — persisted so the
+   *  NEXT recompute can diff it to name what resolved. Stripped from the public
+   *  /api/odds payload (server-only bookkeeping). */
+  actual: Results;
 }
 
 /** FNV-1a over a string — stable input fingerprint + deterministic seed. */
@@ -211,10 +223,28 @@ export function recomputeOdds(force = false): { snapshot: OddsSnapshot; recomput
   sim.rooting = merged;
   kvSet(KV.rootingLock, nextLock);
 
+  // Why did each player's odds move? Diff this sim against the previous
+  // snapshot. `cached.actual === undefined` means the prior snapshot predates
+  // this feature (no diff baseline) — skip drivers that one time rather than
+  // dumping the whole tournament-to-date as "what just changed".
+  const hasBaseline = cached != null && cached.actual !== undefined;
+  const deltas = hasBaseline
+    ? buildEntryDeltas({
+        prevEntries: cached.entries,
+        nextEntries: sim.entries,
+        prevActual: cached.actual ?? emptyResults(),
+        nextActual: actual,
+        drafts: new Map(entries.map((e) => [e.id, e.draft])),
+      })
+    : {};
+
   const snapshot: OddsSnapshot = {
     ...sim,
     computedAt: new Date().toISOString(),
+    prevComputedAt: cached?.computedAt ?? null,
     inputHash,
+    deltas,
+    actual,
   };
   kvSet(ODDS_KEY, snapshot);
   return { snapshot, recomputed: true };
