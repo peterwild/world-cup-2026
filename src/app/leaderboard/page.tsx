@@ -183,7 +183,7 @@ export default async function LeaderboardPage() {
           entry={myOdds}
           sims={odds.sims}
           whose="Your odds"
-          delta={odds.deltas[meId]}
+          delta={odds.deltas?.[meId]}
           computedAt={odds.computedAt}
           pending={oddsPending}
         />
@@ -264,7 +264,7 @@ export default async function LeaderboardPage() {
           const isMe = s.player.id === meId;
           const showPayout = board.hasResults && s.payoutCents > 0;
           const rowOdds = oddsById.get(s.player.id);
-          const rowDelta = odds?.deltas[s.player.id];
+          const rowDelta = odds?.deltas?.[s.player.id];
           const pulse =
             results && odds && s.spiritTeamId && !s.spiritChampion
               ? spiritPulse(s.spiritTeamId, odds.teams, results)
