@@ -34,8 +34,12 @@ export function PicksDisplay(props: {
   groupTables: Record<GroupId, GroupStanding[]>;
   bracket: AssembledBracket;
   firstKickoffISO: string | null;
+  /** Inline possessive for whose picks these are — "your" (default) or "Tim's"
+   *  when viewing someone else's bracket. */
+  possessive?: string;
 }) {
   const { draft, results, showStatus, spiritPulse, groupTables, bracket, firstKickoffISO } = props;
+  const possessive = props.possessive ?? "your";
 
   const [mode, setMode] = useState<View>("list"); // the explicit toggle choice
   const [landscape, setLandscape] = useState(false);
@@ -102,6 +106,7 @@ export function PicksDisplay(props: {
           results={results}
           showStatus={showStatus}
           groupTables={groupTables}
+          possessive={possessive}
         />
       ) : view === "path" ? (
         <PredictedSpine draft={draft} results={results} showStatus={showStatus} />
@@ -123,7 +128,7 @@ export function PicksDisplay(props: {
             className="rounded-full px-4 py-2 text-xs font-medium shadow-lg border"
             style={{ background: "var(--pitch)", color: "white", borderColor: "transparent" }}
           >
-            🔄 Rotated to bracket view — rotate back for your list
+            🔄 Rotated to bracket view — rotate back for the list
           </div>
         </div>
       )}

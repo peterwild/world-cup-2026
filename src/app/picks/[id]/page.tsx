@@ -98,6 +98,7 @@ export default async function PlayerBracketPage({
         groupTables={groupTables}
         bracket={bracket}
         firstKickoffISO={firstKickoffISO}
+        possessive={`${firstName}'s`}
       />
     </div>
   );

@@ -49,14 +49,17 @@ function rowCenters(): Record<number, number> {
 export function BracketTree({
   bracket,
   firstKickoffISO,
+  possessive = "your",
 }: {
   bracket: AssembledBracket;
   firstKickoffISO: string | null;
+  /** Inline possessive — "your" or "Tim's" when viewing someone else. */
+  possessive?: string;
 }) {
   const centers = useMemo(() => rowCenters(), []);
 
   if (!bracket.hasFixtures) {
-    return <Placeholder firstKickoffISO={firstKickoffISO} />;
+    return <Placeholder firstKickoffISO={firstKickoffISO} possessive={possessive} />;
   }
 
   const colX = (col: number) => PAD_X + col * COL_W;
@@ -121,9 +124,9 @@ export function BracketTree({
               className="absolute card-surface rounded-lg border border-border overflow-hidden"
               style={{ left: colX(ROUND_COL[tm.round]), top: cardTop(tm.match), width: CARD_W, height: CARD_H }}
             >
-              <SlotRow slot={node.home} decided={isDecided(node.home, node.away)} />
+              <SlotRow slot={node.home} decided={isDecided(node.home, node.away)} possessive={possessive} />
               <div className="border-t border-border" />
-              <SlotRow slot={node.away} decided={isDecided(node.home, node.away)} />
+              <SlotRow slot={node.away} decided={isDecided(node.home, node.away)} possessive={possessive} />
             </div>
           );
         })}
@@ -141,7 +144,7 @@ export function BracketTree({
           }}
         >
           {bracket.champion.teamId ? (
-            <ChampionLabel teamId={bracket.champion.teamId} picked={bracket.champion.picked} />
+            <ChampionLabel teamId={bracket.champion.teamId} picked={bracket.champion.picked} possessive={possessive} />
           ) : (
             <span className="text-xs text-muted-foreground">🏆 TBD</span>
           )}
@@ -155,7 +158,7 @@ function isDecided(home: BracketSlot, away: BracketSlot): boolean {
   return home.advanced || away.advanced;
 }
 
-function SlotRow({ slot, decided }: { slot: BracketSlot; decided: boolean }) {
+function SlotRow({ slot, decided, possessive }: { slot: BracketSlot; decided: boolean; possessive: string }) {
   const team = slot.teamId ? TEAMS_BY_ID[slot.teamId] : null;
   const out = decided && !slot.advanced; // eliminated here
   return (
@@ -174,7 +177,7 @@ function SlotRow({ slot, decided }: { slot: BracketSlot; decided: boolean }) {
           <span className="flex-1 truncate" style={out ? { textDecoration: "line-through" } : undefined}>
             {team.name}
           </span>
-          {slot.picked && <span style={{ color: "var(--pitch)" }} title="you backed this team">✓</span>}
+          {slot.picked && <span style={{ color: "var(--pitch)" }} title={`${possessive} pick`}>✓</span>}
         </>
       ) : (
         <span className="text-muted-foreground">—</span>
@@ -183,29 +186,31 @@ function SlotRow({ slot, decided }: { slot: BracketSlot; decided: boolean }) {
   );
 }
 
-function ChampionLabel({ teamId, picked }: { teamId: string; picked: boolean }) {
+function ChampionLabel({ teamId, picked, possessive }: { teamId: string; picked: boolean; possessive: string }) {
   const team = TEAMS_BY_ID[teamId];
   if (!team) return null;
   return (
     <span className="flex items-center gap-1.5 text-sm font-bold" style={{ color: "var(--gold)" }}>
       🏆 <Flag code={team.flag} sm /> {team.name}
-      {picked && <span title="your pick">✓</span>}
+      {picked && <span title={`${possessive} pick`}>✓</span>}
     </span>
   );
 }
 
-function Placeholder({ firstKickoffISO }: { firstKickoffISO: string | null }) {
+function Placeholder({ firstKickoffISO, possessive }: { firstKickoffISO: string | null; possessive: string }) {
   // Format in the viewer's own timezone so the date is always right for them.
   const when = firstKickoffISO
     ? new Date(firstKickoffISO).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })
     : null;
+  // Sentence-start, so capitalize the possessive ("Your"/"Tim's").
+  const Possessive = possessive.charAt(0).toUpperCase() + possessive.slice(1);
   return (
     <div className="card-surface rounded-xl border border-border p-6 text-center">
       <div className="text-2xl mb-2">🏆</div>
       <div className="font-semibold text-sm">The knockout bracket fills in here</div>
       <p className="mt-1 text-xs text-muted-foreground max-w-xs mx-auto">
         Matchups and winners appear as the Round of 32 is set
-        {when ? ` — first kickoff ${when}.` : " once the group stage ends."} Your picks light up as your
+        {when ? ` — first kickoff ${when}.` : " once the group stage ends."} {Possessive} picks light up as {possessive}{" "}
         teams advance.
       </p>
     </div>
