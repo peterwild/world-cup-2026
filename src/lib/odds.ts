@@ -121,9 +121,14 @@ export function currentRooting(rooting: FixtureRooting[]): {
   const games: FixtureRooting[] = [];
   const laterGames: FixtureRooting[] = [];
   for (const r of rooting) {
-    const live = r.fixture.status === "IN_PLAY" || r.fixture.status === "PAUSED";
-    const soon = live || Date.parse(r.fixture.kickoff) < now + SHOW_AHEAD_MS;
-    (soon ? games : laterGames).push(r);
+    // Only games that HAVEN'T kicked off are "upcoming to root for". A fixture
+    // whose kickoff has passed is live or finished — it belongs to the live
+    // strip / results, not here. `odds.rooting` carries finished games forward
+    // (for the strip's finished-game verdict), so without this guard a game
+    // that's already over double-shows: once in results, once as "upcoming".
+    const kickoff = Date.parse(r.fixture.kickoff);
+    if (kickoff <= now) continue;
+    (kickoff < now + SHOW_AHEAD_MS ? games : laterGames).push(r);
   }
   return { games, laterGames };
 }
