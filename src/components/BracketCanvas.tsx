@@ -46,8 +46,16 @@ export function BracketCanvas({
       {/* Group stage — live tables from the games played so far. */}
       <div>
         <div className="eyebrow">Group stage · live tables</div>
-        <p className="text-[10px] text-muted-foreground mb-2 mt-0.5">
+        <p className="text-[10px] text-muted-foreground mt-0.5">
           Team standings, not your pool score · P played · GD goal difference · Pts group points (3 win / 1 draw)
+        </p>
+        <p className="text-[10px] text-muted-foreground mb-2 mt-0.5 flex items-center gap-1 flex-wrap">
+          <span
+            className="inline-block w-3 h-3 rounded-sm align-middle"
+            style={{ background: "var(--pitch-soft)" }}
+          />
+          = your picks to advance · <span style={{ color: "var(--pitch)" }}>✓</span> advanced ·{" "}
+          <span style={{ color: "var(--destructive)" }}>✗</span> out · 👑 called the group winner
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 landscape:grid-cols-3 gap-3">
           {GROUP_IDS.map((g) => (

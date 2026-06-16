@@ -104,7 +104,7 @@ export function OddsCard({
         </div>
         <div>
           <div className="text-lg font-bold tabular-nums">{pct(entry.top3Prob)}</div>
-          <div className="eyebrow">cash (top 3)</div>
+          <div className="eyebrow">win cash (top 3)</div>
         </div>
         <div title="Projected final score — the mean total this bracket lands on across every simulated tournament.">
           <div className="text-lg font-bold tabular-nums">

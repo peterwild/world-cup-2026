@@ -5,8 +5,12 @@ import { isLocked } from "@/lib/db";
 import { hasAnyResults } from "@/lib/pickStatus";
 import { currentRooting, getOdds } from "@/lib/odds";
 import { spiritPulse } from "@/lib/analytics";
+import { getMatchFeed } from "@/lib/matches";
+import { allGroupTables } from "@/lib/groupTables";
+import { assembleBracket } from "@/lib/knockoutBracket";
+import { firstR32Kickoff } from "@/lib/goldenBoot";
 import { TopNav } from "@/components/TopNav";
-import { BracketView } from "@/components/BracketView";
+import { PicksDisplay } from "@/components/PicksDisplay";
 import { AiAssistedBadge } from "@/components/AiAssistedBadge";
 import { OddsCard } from "@/components/OddsCard";
 import { RootingCard } from "@/components/RootingCard";
@@ -46,6 +50,13 @@ export default async function PlayerBracketPage({
   const pulse =
     odds && draft.spiritTeamId ? spiritPulse(draft.spiritTeamId, odds.teams, results) : null;
 
+  // Live group tables + the real knockout bracket — same as the own-picks page,
+  // assembled against THIS player's draft so their bracket/path views render.
+  const feed = getMatchFeed();
+  const groupTables = allGroupTables(feed?.played ?? []);
+  const bracket = assembleBracket(feed?.knockout ?? [], results, draft);
+  const firstKickoffISO = firstR32Kickoff(feed ?? null);
+
   return (
     <div className="min-h-dvh max-w-xl mx-auto px-4 pb-12">
       <TopNav context={`${firstName}'s bracket`} />
@@ -79,11 +90,14 @@ export default async function PlayerBracketPage({
           whose={firstName}
         />
       )}
-      <BracketView
+      <PicksDisplay
         draft={draft}
         results={results}
         showStatus={showStatus}
         spiritPulse={pulse}
+        groupTables={groupTables}
+        bracket={bracket}
+        firstKickoffISO={firstKickoffISO}
       />
     </div>
   );
