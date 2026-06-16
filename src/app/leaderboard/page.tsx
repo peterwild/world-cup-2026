@@ -354,7 +354,10 @@ export default async function LeaderboardPage() {
                   !showPayout && <div className="eyebrow">pts</div>
                 )}
                 {rowOdds && rowDelta && Math.abs(rowDelta.winProbDelta) >= 0.005 && (
-                  <div className="text-[10px] text-muted-foreground truncate max-w-[9rem] ml-auto">
+                  <div
+                    className="text-[10px] truncate max-w-[9rem] ml-auto"
+                    style={{ color: rowDelta.winProbDelta > 0 ? "var(--pitch)" : "var(--destructive)" }}
+                  >
                     {rowDelta.drivers.length > 0 ? rowDelta.drivers[0] : "field shifted"}
                   </div>
                 )}
