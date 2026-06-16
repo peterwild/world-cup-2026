@@ -93,8 +93,8 @@ export function OddsCard({
             style={{ color: "var(--muted-foreground)" }}
           >
             <span
-              className="inline-block w-1.5 h-1.5 rounded-full"
-              style={{ background: "var(--destructive)" }}
+              className="inline-block w-1.5 h-1.5 rounded-full animate-pulse"
+              style={{ background: "var(--gold)" }}
             />
             {pending}
           </span>
