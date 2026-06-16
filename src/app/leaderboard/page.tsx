@@ -62,9 +62,9 @@ export default async function LeaderboardPage() {
   // showing silent stale numbers right when people check after a game.
   const oddsPending = odds
     ? liveView.live.length > 0
-      ? "Live — odds update when it ends"
+      ? "Updates after this game"
       : liveView.awaitingKickoff
-        ? "Kicking off — odds update after"
+        ? "Updates after this game"
         : null
     : null;
   const isLiveFixture = (s: string) => s === "IN_PLAY" || s === "PAUSED";

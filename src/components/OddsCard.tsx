@@ -89,10 +89,13 @@ export function OddsCard({
         </span>
         {pending && (
           <span
-            className="inline-flex items-center gap-1 rounded-full px-2 py-0.5"
-            style={{ background: "var(--destructive)", color: "white", opacity: 0.85 }}
+            className="inline-flex items-center gap-1 whitespace-nowrap"
+            style={{ color: "var(--muted-foreground)" }}
           >
-            <span className="inline-block w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+            <span
+              className="inline-block w-1.5 h-1.5 rounded-full"
+              style={{ background: "var(--destructive)" }}
+            />
             {pending}
           </span>
         )}
