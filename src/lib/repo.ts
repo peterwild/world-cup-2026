@@ -55,6 +55,18 @@ export function checkPasscode(input: string): boolean {
   return input.trim().toLowerCase() === real.toLowerCase();
 }
 
+/** Every player, name-sorted — for the admin buy-in view (includes people who
+ *  haven't completed a bracket yet, so they aren't dropped from "who's paid"). */
+export function getAllPlayers(): Player[] {
+  return (db().prepare("SELECT * FROM player ORDER BY name COLLATE NOCASE").all() as unknown as PlayerRow[])
+    .map(toPlayer);
+}
+
+/** Flip a player's main-pool buy-in flag. Admin-only at the call site. */
+export function setPlayerPaid(playerId: string, paid: boolean): void {
+  db().prepare("UPDATE player SET paid = ? WHERE id = ?").run(paid ? 1 : 0, playerId);
+}
+
 // ── Bracket ──────────────────────────────────────────────────────────────────
 
 interface BracketRow {
