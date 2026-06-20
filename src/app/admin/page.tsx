@@ -32,7 +32,10 @@ export default async function AdminPage() {
       <TopNav context={`${getGroupName()} · Admin`} />
       <h1 className="text-xl font-extrabold mt-2">Buy-in tracker</h1>
       <p className="text-sm text-muted-foreground mt-1">
-        Only you can see this. Tap a name to flip whether they&apos;ve paid.
+        Only you can see this. Tap a name to flip whether they&apos;ve paid. Tap
+        Delete twice to confirm: in the pool it removes the whole account
+        (bracket, picks, and Golden Boot) — use it to clear duplicate sign-ups;
+        in Golden Boot it only drops that player&apos;s side-bet entry.
       </p>
       <AdminPaidList
         label="Pool buy-ins"
@@ -40,6 +43,7 @@ export default async function AdminPage() {
         buyInCents={getBuyInCents()}
         kind="pool"
         emptyNote="No players yet."
+        allowDelete
       />
       <AdminPaidList
         label="Golden Boot buy-ins"
@@ -47,6 +51,7 @@ export default async function AdminPage() {
         buyInCents={getGoldenBootBuyInCents()}
         kind="goldenBoot"
         emptyNote="Nobody has opted into the Golden Boot yet."
+        allowDelete
       />
     </div>
   );

@@ -67,6 +67,15 @@ export function setPlayerPaid(playerId: string, paid: boolean): void {
   db().prepare("UPDATE player SET paid = ? WHERE id = ?").run(paid ? 1 : 0, playerId);
 }
 
+/** Permanently remove a player and everything keyed to them — bracket,
+ * ai_session and golden_boot all cascade via ON DELETE CASCADE (foreign_keys is
+ * ON). Used by the admin to clear out duplicate accounts. Admin-only at the
+ * call site. Returns whether a row was actually deleted. */
+export function deletePlayer(playerId: string): boolean {
+  const info = db().prepare("DELETE FROM player WHERE id = ?").run(playerId);
+  return info.changes > 0;
+}
+
 // ── Bracket ──────────────────────────────────────────────────────────────────
 
 interface BracketRow {
@@ -301,6 +310,14 @@ export function setGoldenBootPaid(playerId: string, paid: boolean): void {
   db()
     .prepare("UPDATE golden_boot SET paid = ?, updated_at = datetime('now') WHERE player_id = ?")
     .run(paid ? 1 : 0, playerId);
+}
+
+/** Drop a player's Golden Boot entry entirely (back to "never answered the
+ * opt-in"). Leaves the player and their bracket untouched — this only clears
+ * the side-bet submission. Admin-only at the call site. */
+export function deleteGoldenBoot(playerId: string): boolean {
+  const info = db().prepare("DELETE FROM golden_boot WHERE player_id = ?").run(playerId);
+  return info.changes > 0;
 }
 
 /** When this player last changed their opt-in status (UTC, sqlite datetime).

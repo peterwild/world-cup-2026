@@ -20,6 +20,7 @@ export function AdminPaidList({
   buyInCents,
   kind = "pool",
   emptyNote = "Nobody here yet.",
+  allowDelete = false,
 }: {
   /** Eyebrow heading, e.g. "Pool buy-ins" / "Golden Boot buy-ins". */
   label: string;
@@ -28,10 +29,15 @@ export function AdminPaidList({
   kind?: "pool" | "goldenBoot";
   /** Shown instead of the list when there are no players in this pot. */
   emptyNote?: string;
+  /** Show a per-row delete control that nukes the whole player account
+   * (cascades across all pots). Only makes sense on a list of every player. */
+  allowDelete?: boolean;
 }) {
   const [rows, setRows] = useState<Row[]>(players);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Two-tap delete: first tap arms a row, the second (within the window) fires.
+  const [armed, setArmed] = useState<string | null>(null);
 
   const paidCount = rows.filter((r) => r.paid).length;
 
@@ -52,6 +58,27 @@ export function AdminPaidList({
     } catch {
       setRows((rs) => rs.map((r) => (r.id === id ? { ...r, paid: !next } : r))); // revert
       setError("Couldn't save — try again.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function remove(id: string) {
+    setError(null);
+    setArmed(null);
+    setBusy(id);
+    const prev = rows;
+    setRows((rs) => rs.filter((r) => r.id !== id)); // optimistic
+    try {
+      const res = await fetch("/api/admin/players", {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ playerId: id, kind }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    } catch {
+      setRows(prev); // restore on failure
+      setError("Couldn't delete — try again.");
     } finally {
       setBusy(null);
     }
@@ -84,20 +111,46 @@ export function AdminPaidList({
         {rows.map((r) => (
           <li key={r.id} className="flex items-center justify-between gap-3 py-2">
             <span className="truncate font-medium">{r.name}</span>
-            <button
-              type="button"
-              disabled={busy === r.id}
-              onClick={() => toggle(r.id, !r.paid)}
-              className="shrink-0 rounded-full px-3 py-1 text-xs font-semibold border transition-colors disabled:opacity-50"
-              style={{
-                color: r.paid ? "var(--pitch)" : "var(--muted-foreground)",
-                borderColor: r.paid ? "var(--pitch)" : "var(--border)",
-                background: r.paid ? "color-mix(in oklab, var(--pitch) 12%, transparent)" : "transparent",
-              }}
-              aria-pressed={r.paid}
-            >
-              {busy === r.id ? "…" : r.paid ? "✓ Paid" : "Mark paid"}
-            </button>
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                type="button"
+                disabled={busy === r.id}
+                onClick={() => toggle(r.id, !r.paid)}
+                className="shrink-0 rounded-full px-3 py-1 text-xs font-semibold border transition-colors disabled:opacity-50"
+                style={{
+                  color: r.paid ? "var(--pitch)" : "var(--muted-foreground)",
+                  borderColor: r.paid ? "var(--pitch)" : "var(--border)",
+                  background: r.paid ? "color-mix(in oklab, var(--pitch) 12%, transparent)" : "transparent",
+                }}
+                aria-pressed={r.paid}
+              >
+                {busy === r.id ? "…" : r.paid ? "✓ Paid" : "Mark paid"}
+              </button>
+              {allowDelete && (
+                <button
+                  type="button"
+                  disabled={busy === r.id}
+                  onClick={() => (armed === r.id ? remove(r.id) : setArmed(r.id))}
+                  onBlur={() => setArmed((a) => (a === r.id ? null : a))}
+                  className="shrink-0 rounded-full px-3 py-1 text-xs font-semibold border transition-colors disabled:opacity-50"
+                  style={{
+                    color: armed === r.id ? "var(--destructive)" : "var(--muted-foreground)",
+                    borderColor: armed === r.id ? "var(--destructive)" : "var(--border)",
+                    background:
+                      armed === r.id
+                        ? "color-mix(in oklab, var(--destructive) 12%, transparent)"
+                        : "transparent",
+                  }}
+                  aria-label={
+                    armed === r.id
+                      ? `Confirm ${kind === "goldenBoot" ? "opt out" : "delete"} ${r.name}`
+                      : `${kind === "goldenBoot" ? "Opt out" : "Delete"} ${r.name}`
+                  }
+                >
+                  {armed === r.id ? "Sure?" : kind === "goldenBoot" ? "Opt out" : "Delete"}
+                </button>
+              )}
+            </div>
           </li>
         ))}
       </ul>
