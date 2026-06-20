@@ -1,14 +1,12 @@
 import type { ReactNode } from "react";
 import { TEAMS_BY_ID } from "@/lib/teams";
 import type { FixtureRooting, RootingOutcome } from "@/lib/analytics";
+import { MEANINGFUL_ODDS_SWING } from "@/lib/odds";
 import { Flag } from "@/components/Flag";
 
 // "Who to root for" — for each upcoming game, which result most improves YOUR
 // odds of winning the pool. Conditional probabilities read straight from the
 // odds snapshot's rooting buckets (lib/analytics.ts); no compute here.
-
-/** Below this, a game genuinely doesn't move your odds — say so. */
-const MEANINGFUL = 0.003;
 
 function kickoffLabel(iso: string, status: string): string {
   if (status === "IN_PLAY" || status === "PAUSED") return "🔴 live now";
@@ -63,7 +61,7 @@ function GameRow({
   // flag + bold name, with the heart commentary tucked in parentheses.
   let verdict: ReactNode;
   let showOdds = false;
-  if (!best || spread < MEANINGFUL) {
+  if (!best || spread < MEANINGFUL_ODDS_SWING) {
     verdict =
       spiritInvolved && spiritTeam ? (
         <>

@@ -6,7 +6,7 @@ import { backingDepth } from "@/lib/bracketState";
 import { isLocked, kvGet, KV } from "@/lib/db";
 import { computeLeaderboard, formatUsd } from "@/lib/standings";
 import { PAYOUT_SPLIT, computePayouts } from "@/lib/tournament";
-import { currentRooting, getOdds, getRootingLock } from "@/lib/odds";
+import { currentRooting, getOdds, getRootingLock, MEANINGFUL_ODDS_SWING } from "@/lib/odds";
 import { getLiveView } from "@/lib/liveScores";
 import { spiritPulse } from "@/lib/analytics";
 import { TEAMS_BY_ID } from "@/lib/teams";
@@ -96,7 +96,7 @@ export default async function LeaderboardPage() {
       if (o.winProb[meId] > best.winProb[meId]) best = o;
       if (o.winProb[meId] < worst.winProb[meId]) worst = o;
     }
-    if (best.winProb[meId] - worst.winProb[meId] < 0.003) continue; // doesn't move me
+    if (best.winProb[meId] - worst.winProb[meId] < MEANINGFUL_ODDS_SWING) continue; // doesn't move me
     myArrows[`${r.fixture.home}-${r.fixture.away}`] = { outcome: best.outcome, win: best.winProb[meId] };
   }
   const placeLabels = ["1st", "2nd", "3rd"];

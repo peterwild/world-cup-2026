@@ -22,7 +22,7 @@
 
 import { kvGet, kvSet, KV } from "./db";
 import { getAllEntries, getResults } from "./repo";
-import { bracketComplete } from "./bracketState";
+import { bracketComplete, cascadeTrim } from "./bracketState";
 import { getMatchFeed } from "./matches";
 import { STAGE_TO_ROUND } from "./footballData";
 import { emptyResults, type Results } from "./scoring";
@@ -46,6 +46,13 @@ const WATCH_AHEAD_MS = 48 * 3600 * 1000;
 /** Keep a fixture watched a few hours past kickoff — covers in-play status lag. */
 const WATCH_BEHIND_MS = 4 * 3600 * 1000;
 const WATCH_CAP = 12;
+
+/** Minimum swing in P(win pool) between a game's best and worst outcome for it
+ *  to count as "worth rooting for." Below this the result genuinely doesn't move
+ *  you, and the UI says so instead of recommending a side. Shared by every
+ *  rooting surface (RootingCard + the leaderboard's live-strip arrows) so they
+ *  agree on which games matter. */
+export const MEANINGFUL_ODDS_SWING = 0.003;
 
 export interface OddsSnapshot extends PoolSimulation {
   computedAt: string; // ISO
@@ -72,10 +79,15 @@ function fnv1a(s: string): number {
   return h >>> 0;
 }
 
-/** Pool entries, filtered exactly like the leaderboard (standings.ts): you're
- *  in once you've committed a complete bracket, and submitted_at is sticky. */
+/** Pool entries, derived exactly like the leaderboard (standings.ts): normalize
+ *  each draft through cascadeTrim FIRST (so an invalid/legacy pick can't be
+ *  scored, and membership is judged on the same trimmed bracket), then keep
+ *  whoever has committed a complete bracket — submitted_at is sticky. Must stay
+ *  in lockstep with computeLeaderboard: the sim's win-probs feed back into the
+ *  leaderboard tie-break, so both have to describe the same pool. */
 function poolEntries(): PoolEntry[] {
   return getAllEntries()
+    .map((e) => ({ ...e, draft: cascadeTrim(e.draft) }))
     .filter((e) => e.submittedAt !== null || bracketComplete(e.draft))
     .map((e) => ({ id: e.player.id, name: e.player.name, draft: e.draft }));
 }
