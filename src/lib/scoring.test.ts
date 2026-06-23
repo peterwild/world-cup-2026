@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { emptyDraft } from "./bracketState.ts";
 import { scoreBracket, tiebreakDistance, mergeResults, type Results } from "./scoring.ts";
+import { GROUP_IDS } from "./teams.ts";
 
 // A bracket that nails Group A (mex 1st, cze 2nd) and rides France deep.
 function sampleBracket() {
@@ -95,28 +96,48 @@ test("empty results → zero score, no crash", () => {
   assert.equal(s.correctChampion, false);
 });
 
-test("mergeResults: a flapped feed can't un-complete a group (no points clawback)", () => {
+const allGroupsDecided = (): Results["groupResults"] =>
+  Object.fromEntries(
+    GROUP_IDS.map((g) => [g, { first: `${g}1`, second: `${g}2` }]),
+  ) as Results["groupResults"];
+
+test("mergeResults: a flapped poll can't un-complete a group", () => {
   const prev: Results = {
     groupResults: { A: { first: "ARG", second: "MEX" } },
-    roundTeams: { R32: ["ARG", "MEX"] },
+    roundTeams: {},
     finalGoals: null,
   };
-  // The next poll came back partial — group A no longer reads complete, R32 empty.
+  // The next poll came back partial — group A no longer reads complete.
   const flapped: Results = { groupResults: {}, roundTeams: {}, finalGoals: null };
-  const merged = mergeResults(prev, flapped);
-  assert.deepEqual(merged.groupResults, { A: { first: "ARG", second: "MEX" } });
-  assert.deepEqual(merged.roundTeams.R32, ["ARG", "MEX"]);
+  assert.deepEqual(mergeResults(prev, flapped).groupResults, { A: { first: "ARG", second: "MEX" } });
 });
 
-test("mergeResults: forward progress still lands (new group, unioned reaches, final)", () => {
+test("mergeResults: a stale knockout projection self-heals mid-group-stage", () => {
+  // A projected R32 reach got frozen in earlier; the group stage isn't over, so
+  // the (status-gated) derived poll has none — the stale one must NOT persist.
+  const prev: Results = { groupResults: {}, roundTeams: { R32: ["nor"] }, finalGoals: null };
+  const clean: Results = { groupResults: {}, roundTeams: {}, finalGoals: null };
+  assert.equal(mergeResults(prev, clean).roundTeams.R32, undefined);
+});
+
+test("mergeResults: once the group stage is decided, knockout reaches are sticky", () => {
+  const groups = allGroupsDecided();
+  const prev: Results = { groupResults: groups, roundTeams: { R16: ["bra"] }, finalGoals: null };
+  // A partial poll drops the real R16 reach — group stage complete, so the union
+  // keeps it (protects banked knockout points from a feed flap).
+  const flapped: Results = { groupResults: groups, roundTeams: {}, finalGoals: null };
+  assert.deepEqual(mergeResults(prev, flapped).roundTeams.R16, ["bra"]);
+});
+
+test("mergeResults: forward progress still lands (new group, finalGoals)", () => {
   const prev: Results = {
     groupResults: { A: { first: "ARG", second: "MEX" } },
-    roundTeams: { R32: ["ARG"] },
+    roundTeams: {},
     finalGoals: null,
   };
   const next: Results = {
     groupResults: { B: { first: "FRA", second: "SEN" } },
-    roundTeams: { R32: ["MEX", "FRA"] },
+    roundTeams: {},
     finalGoals: 3,
   };
   const merged = mergeResults(prev, next);
@@ -124,7 +145,6 @@ test("mergeResults: forward progress still lands (new group, unioned reaches, fi
     A: { first: "ARG", second: "MEX" },
     B: { first: "FRA", second: "SEN" },
   });
-  assert.deepEqual([...merged.roundTeams.R32!].sort(), ["ARG", "FRA", "MEX"]);
   assert.equal(merged.finalGoals, 3);
 });
 

@@ -32,22 +32,31 @@ export function emptyResults(): Results {
  *  free-tier feed can return a partial/flapped poll where a completed group's
  *  matches momentarily don't all read FINISHED — deriveResults is stateless, so
  *  that snapshot would UN-complete the group and claw back already-banked points
- *  (seen live: a "−3 pts" swing on a card). Reality is monotonic: a decided
- *  group never un-decides, a team that reached a round stays reached, the final
- *  once played is played. So we never regress —
+ *  (seen live: a "−3 pts" swing on a card). Reality is monotonic, so we never
+ *  regress real progress —
  *    • groupResults: a group already set is frozen (its top-2 are final); only
  *      newly-completed groups are added.
- *    • roundTeams: union per round — a reached team is never dropped.
  *    • finalGoals: sticky once known.
+ *    • roundTeams: union per round (a reached team is never dropped) — but ONLY
+ *      once the group stage is fully decided. Before then no real knockout game
+ *      has kicked off, so a "reach" can only be a football-data bracket
+ *      PROJECTION (it pre-fills LAST_32 with likely qualifiers, reshuffling them
+ *      until each group ends). We take the derived set verbatim in that window so
+ *      a stale projection can't get frozen in; stickiness switches on only when
+ *      knockouts have legitimately begun. (deriveResults' status gate already
+ *      keeps projections out of `next`; this stops an OLD one persisting.)
  *  Same design as the forward-only status workflow + kickoff-locked rooting.
  *  Genuine corrections go through the admin route's explicit replace path. */
 export function mergeResults(prev: Results, next: Results): Results {
   const groupResults = { ...next.groupResults, ...prev.groupResults };
+  const groupStageComplete = Object.keys(groupResults).length >= GROUP_IDS.length;
 
   const roundTeams: Results["roundTeams"] = {};
   for (const round of KNOCKOUT_ROUNDS) {
-    const union = [...new Set([...(prev.roundTeams[round] ?? []), ...(next.roundTeams[round] ?? [])])];
-    if (union.length) roundTeams[round] = union;
+    const teams = groupStageComplete
+      ? [...new Set([...(prev.roundTeams[round] ?? []), ...(next.roundTeams[round] ?? [])])]
+      : [...(next.roundTeams[round] ?? [])];
+    if (teams.length) roundTeams[round] = teams;
   }
 
   return {
