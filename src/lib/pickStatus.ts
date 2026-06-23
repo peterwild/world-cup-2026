@@ -8,7 +8,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { GroupId } from "./teams";
-import type { KnockoutRound } from "./tournament";
+import { ROUND_SIZE, type KnockoutRound } from "./tournament";
 import type { Results } from "./scoring";
 
 export type PickStatus = "correct" | "missed" | "pending";
@@ -20,9 +20,14 @@ export function knockoutPickStatus(
   round: KnockoutRound,
   teamId: string,
 ): PickStatus {
-  const actual = results.roundTeams[round];
-  if (!actual) return "pending";
-  return actual.includes(teamId) ? "correct" : "missed";
+  const actual = results.roundTeams[round] ?? [];
+  if (actual.includes(teamId)) return "correct"; // confirmed in the field
+  // Not (yet) in it. Only a MISS once the round's field is fully known — while it
+  // fills in (knockouts play out over days, and football-data pre-fills the
+  // bracket with projections), a team not yet listed is still pending, not out.
+  // Pre-fix a partial/projected field marked not-yet-listed teams "missed",
+  // striking a team like Norway through before its group had even finished.
+  return actual.length >= ROUND_SIZE[round] ? "missed" : "pending";
 }
 
 /** Did a team you ranked top-2 actually advance from its group?
