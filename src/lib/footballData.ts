@@ -267,11 +267,21 @@ export function deriveResults(matches: FdMatch[]): { results: Results; unmapped:
     groupResults[g] = { first: teams[0], second: teams[1] };
   }
 
-  // ── Knockout reaches: a team "reached" a round if it appears in a match there ──
+  // ── Knockout reaches: a team "reached" a round if it's in a PLAYED/LIVE match
+  //    there. The status gate is load-bearing: football-data publishes the whole
+  //    knockout bracket ahead of time and pre-fills LAST_32 slots with PROJECTED
+  //    qualifiers — including teams not yet guaranteed (and reshuffling 1st/2nd
+  //    seeding until each group's final whistle). Counting a team for merely
+  //    APPEARING in a scheduled fixture credited "reached R32" mid-group-stage
+  //    (banking knockout points before any group even finished) and made them
+  //    flicker as the projection moved. Only a match that's actually underway or
+  //    decided proves a team is really there.
+  const PLAYED_OR_LIVE = new Set(["FINISHED", "IN_PLAY", "PAUSED"]);
   const roundTeams: Results["roundTeams"] = {};
   for (const m of matches) {
     const round = STAGE_TO_ROUND[m.stage];
     if (!round) continue;
+    if (!PLAYED_OR_LIVE.has(m.status)) continue; // skip scheduled/projected fixtures
     for (const name of [m.homeTeam.name, m.awayTeam.name]) {
       const tid = id(name);
       if (!tid) continue; // skip TBD teams — don't create an empty round

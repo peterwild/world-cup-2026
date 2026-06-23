@@ -82,6 +82,35 @@ test("knockout reaches + champion from FINAL", () => {
   assert.equal(results.finalGoals, 3);
 });
 
+test("scheduled/projected knockout fixtures don't count as reaches", () => {
+  // football-data pre-fills the LAST_32 bracket with projected qualifiers before
+  // the group stage ends. A scheduled (un-played) one must NOT credit a reach —
+  // otherwise teams bank knockout points mid-group and flicker as projections move.
+  const projected: FdMatch = {
+    stage: "LAST_32",
+    group: null,
+    status: "SCHEDULED",
+    homeTeam: { name: "Germany" },
+    awayTeam: { name: "Mexico" },
+    score: { winner: null, fullTime: { home: null, away: null } },
+  };
+  const { results } = deriveResults([projected]);
+  assert.equal(results.roundTeams.R32, undefined);
+});
+
+test("a live knockout match does count as a reach", () => {
+  const live: FdMatch = {
+    stage: "LAST_32",
+    group: null,
+    status: "IN_PLAY",
+    homeTeam: { name: "Germany" },
+    awayTeam: { name: "Mexico" },
+    score: { winner: null, fullTime: { home: 0, away: 0 } },
+  };
+  const { results } = deriveResults([live]);
+  assert.deepEqual(results.roundTeams.R32?.sort(), ["ger", "mex"]);
+});
+
 test("reports unmapped names instead of guessing", () => {
   const { unmapped } = deriveResults([group("Mexico", "Madeupistan", 1, 0)]);
   assert.deepEqual(unmapped, ["Madeupistan"]);
