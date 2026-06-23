@@ -61,7 +61,9 @@ const KO_BACKING: { round: KnockoutRound; depth: number }[] = [
   { round: "FINAL", depth: 5 },
   { round: "CHAMPION", depth: 6 },
 ];
-export function backingDepth(d: DraftBracket): Record<string, number> {
+export type BackDepth = Record<string, number>;
+
+export function backingDepth(d: DraftBracket): BackDepth {
   const ko: Record<string, number> = {};
   const bump = (t: string | undefined, v: number) => {
     if (t) ko[t] = Math.max(ko[t] ?? 0, v);
@@ -76,11 +78,40 @@ export function backingDepth(d: DraftBracket): Record<string, number> {
     });
   }
 
-  const depth: Record<string, number> = {};
+  const depth: BackDepth = {};
   for (const t of new Set([...Object.keys(ko), ...Object.keys(frac)])) {
     depth[t] = (ko[t] ?? 0) + (frac[t] ?? 0);
   }
   return depth;
+}
+
+/** Which team in a head-to-head YOUR bracket carries further, or null if neither
+ *  is on your card (or you backed them equally). The whole basis of "who to root
+ *  for": the recommendation is read straight off your bracket, never from pool
+ *  math, so it can never tell you to root against your own pick. Knockout depth
+ *  dominates; the group fraction breaks group-stage games (root for whoever you
+ *  ranked to advance). */
+export function backedSide(home: string, away: string, back: BackDepth): "home" | "away" | null {
+  const dh = back[home] ?? 0;
+  const da = back[away] ?? 0;
+  if (Math.max(dh, da) <= 0) return null; // neither is anywhere on your bracket
+  if (Math.abs(dh - da) < 0.05) return null; // backed equally — no lean
+  return dh > da ? "home" : "away";
+}
+
+/** Plain-English "why root for them" — how deep YOUR bracket carries the team,
+ *  matching backingDepth's scale (CHAMPION=6 … R16=2, R32 field=1, group <1).
+ *  `poss` already carries the apostrophe form ("your" / "Dejan's"). */
+export function backDepthPhrase(depth: number, poss = "your"): string {
+  if (depth >= 6) return `${poss} champion pick`;
+  if (depth >= 5) return `${poss} finalist`;
+  if (depth >= 4) return `${poss} semifinalist`;
+  if (depth >= 3) return `${poss} quarterfinalist`;
+  if (depth >= 2) return `in ${poss} round of 16`;
+  if (depth >= 1) return `${poss} pick to reach the knockouts`;
+  if (depth >= 0.3) return `${poss} pick to win the group`;
+  if (depth >= 0.2) return `${poss} pick to advance`;
+  return `${poss} group pick`;
 }
 
 /** Teams available to pick INTO a given knockout round (the prior round's set). */

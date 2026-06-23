@@ -1,12 +1,14 @@
 import type { ReactNode } from "react";
 import { TEAMS_BY_ID } from "@/lib/teams";
-import type { FixtureRooting, RootingOutcome } from "@/lib/analytics";
-import { MEANINGFUL_ODDS_SWING } from "@/lib/odds";
+import type { FixtureRooting } from "@/lib/analytics";
+import { type BackDepth, backedSide, backDepthPhrase } from "@/lib/bracketState";
 import { Flag } from "@/components/Flag";
 
-// "Who to root for" — for each upcoming game, which result most improves YOUR
-// odds of winning the pool. Conditional probabilities read straight from the
-// odds snapshot's rooting buckets (lib/analytics.ts); no compute here.
+// "Who to root for" — for each upcoming game, the team YOUR bracket carries
+// further. Read straight off your picks (lib/bracketState), never from pool
+// math, so the call is always the team you actually picked. The only twist on
+// top is your spirit team: if it's playing and your bracket has no stake, root
+// for it; if it's playing AGAINST your bracket pick, we say so.
 
 function kickoffLabel(iso: string, status: string): string {
   if (status === "IN_PLAY" || status === "PAUSED") return "🔴 live now";
@@ -19,21 +21,14 @@ function kickoffLabel(iso: string, status: string): string {
   return `${t} ET`;
 }
 
-/** "9.0%" / "11.4%" — always one decimal so both sides of the arrow match. */
-function pct1(p: number): string {
-  return `${(p * 100).toFixed(1)}%`;
-}
-
 function GameRow({
   g,
-  meId,
-  baselineWin,
+  back,
   spiritTeamId,
   possessive,
 }: {
   g: FixtureRooting;
-  meId: string;
-  baselineWin: number;
+  back: BackDepth;
   spiritTeamId: string | null;
   /** "your" on your own surfaces, "Dejan's" when scouting someone else. */
   possessive: string;
@@ -42,63 +37,52 @@ function GameRow({
   const away = TEAMS_BY_ID[g.fixture.away];
   if (!home || !away) return null;
 
-  // Best/worst result for YOU.
-  const mine = g.outcomes.filter((o) => o.winProb[meId] !== undefined);
-  let best: RootingOutcome | null = null;
-  let worst: RootingOutcome | null = null;
-  for (const o of mine) {
-    if (!best || o.winProb[meId] > best.winProb[meId]) best = o;
-    if (!worst || o.winProb[meId] < worst.winProb[meId]) worst = o;
-  }
-  const spread = best && worst ? best.winProb[meId] - worst.winProb[meId] : 0;
+  // The team your bracket carries further in this game (null = no stake).
+  const side = backedSide(g.fixture.home, g.fixture.away, back);
+  const backedId = side === "home" ? g.fixture.home : side === "away" ? g.fixture.away : null;
+  const backedTeam = side === "home" ? home : side === "away" ? away : null;
 
   const spiritInvolved =
     spiritTeamId === g.fixture.home || spiritTeamId === g.fixture.away;
-  const spiritWinKey = spiritTeamId === g.fixture.home ? "home" : "away";
   const spiritTeam = spiritTeamId ? TEAMS_BY_ID[spiritTeamId] : null;
 
   // The verdict line. The team you should root for is the headline:
-  // flag + bold name, with the heart commentary tucked in parentheses.
+  // flag + bold name, with the "why" tucked in parentheses.
   let verdict: ReactNode;
-  let showOdds = false;
-  if (!best || spread < MEANINGFUL_ODDS_SWING) {
+  if (!backedTeam) {
+    // No bracket stake. Root for your spirit team if it's in this game, else
+    // it's a free watch.
     verdict =
       spiritInvolved && spiritTeam ? (
         <>
           Root for <Flag code={spiritTeam.flag} />{" "}
           <strong className="text-foreground">{spiritTeam.name}</strong>{" "}
-          <span>(💗 nothing at stake — pure spirit)</span>
+          <span>(💗 nothing on your card — pure spirit)</span>
         </>
       ) : (
-        <>Barely moves {possessive} odds — enjoy the game 🍿</>
+        <>No stake for {possessive} bracket — enjoy the game 🍿</>
       );
   } else {
-    const team =
-      best.outcome === "home" ? home : best.outcome === "away" ? away : null;
+    const phrase = backDepthPhrase(back[backedId!] ?? 0, possessive);
     let heart: ReactNode = null;
     if (spiritInvolved) {
+      // Spirit team is in this game. If it IS your backed team, hearts align;
+      // otherwise rooting for your bracket pick means rooting against it.
       heart =
-        best.outcome === spiritWinKey ? (
+        spiritTeamId === backedId ? (
           <span> (💗 heart and bracket agree)</span>
         ) : (
-          <span> (💔 hurts {possessive} spirit team)</span>
+          <span> (💔 against {possessive} spirit team)</span>
         );
     }
     verdict = (
       <>
-        Root for{" "}
-        {team ? (
-          <>
-            <Flag code={team.flag} />{" "}
-            <strong className="text-foreground">{team.name}</strong>
-          </>
-        ) : (
-          <strong className="text-foreground">🤝 a draw</strong>
-        )}
+        Root for <Flag code={backedTeam.flag} />{" "}
+        <strong className="text-foreground">{backedTeam.name}</strong>{" "}
+        <span className="text-muted-foreground">— {phrase}</span>
         {heart}
       </>
     );
-    showOdds = true;
   }
 
   return (
@@ -115,33 +99,7 @@ function GameRow({
           {kickoffLabel(g.fixture.kickoff, g.fixture.status)}
         </span>
       </div>
-      <div className="mt-0.5 flex items-center justify-between gap-2 text-xs">
-        <span className="text-muted-foreground">{verdict}</span>
-        {showOdds && best && (
-          <span
-            className="text-right whitespace-nowrap tabular-nums"
-            title={`Odds to win the pool if this result lands — vs ${pct1(
-              worst?.winProb[meId] ?? baselineWin,
-            )} if the worst result lands instead.`}
-          >
-            <span className="text-muted-foreground">
-              {pct1(baselineWin)} →{" "}
-            </span>
-            <span
-              className="font-semibold"
-              style={{
-                color:
-                  best.winProb[meId] >= baselineWin
-                    ? "var(--pitch)"
-                    : "var(--destructive)",
-              }}
-            >
-              {pct1(best.winProb[meId])}
-            </span>
-            <span className="block eyebrow">{possessive} win odds</span>
-          </span>
-        )}
-      </div>
+      <div className="mt-0.5 text-xs text-muted-foreground">{verdict}</div>
     </div>
   );
 }
@@ -149,19 +107,19 @@ function GameRow({
 export function RootingCard({
   games,
   laterGames,
-  meId,
-  baselineWin,
+  back,
   spiritTeamId,
   whose,
 }: {
   /** Pre-filtered to the display window — see currentRooting() in lib/odds.ts
-   *  (render must stay pure, so the Date.now() cut happens in the caller). */
+   *  (render must stay pure, so the Date.now() cut happens in the caller). The
+   *  fixtures supply WHICH games are coming up; the recommendation comes from
+   *  `back`, not their conditional buckets. */
   games: FixtureRooting[];
   /** Watched fixtures beyond the window — collapsed behind a disclosure. */
   laterGames: FixtureRooting[];
-  meId: string;
-  /** That player's current P(win pool) — the "from" side of the odds arrow. */
-  baselineWin: number;
+  /** How deep this player's bracket backs each team (lib/bracketState). */
+  back: BackDepth;
   spiritTeamId: string | null;
   /** First name when scouting someone else's page; omitted = second person. */
   whose?: string;
@@ -179,8 +137,7 @@ export function RootingCard({
           <GameRow
             key={g.fixture.id}
             g={g}
-            meId={meId}
-            baselineWin={baselineWin}
+            back={back}
             spiritTeamId={spiritTeamId}
             possessive={possessive}
           />
@@ -198,8 +155,7 @@ export function RootingCard({
               <GameRow
                 key={g.fixture.id}
                 g={g}
-                meId={meId}
-                baselineWin={baselineWin}
+                back={back}
                 spiritTeamId={spiritTeamId}
                 possessive={possessive}
               />

@@ -4,6 +4,7 @@ import { getDraft, getPlayer, getResults } from "@/lib/repo";
 import { isLocked } from "@/lib/db";
 import { hasAnyResults } from "@/lib/pickStatus";
 import { currentRooting, getOdds } from "@/lib/odds";
+import { backingDepth } from "@/lib/bracketState";
 import { spiritPulse } from "@/lib/analytics";
 import { getMatchFeed } from "@/lib/matches";
 import { allGroupTables } from "@/lib/groupTables";
@@ -14,6 +15,7 @@ import { PicksDisplay } from "@/components/PicksDisplay";
 import { AiAssistedBadge } from "@/components/AiAssistedBadge";
 import { OddsCard } from "@/components/OddsCard";
 import { RootingCard } from "@/components/RootingCard";
+import { LiveStrip } from "@/components/LiveStrip";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -47,6 +49,9 @@ export default async function PlayerBracketPage({
   const odds = getOdds();
   const theirOdds = odds?.entries.find((e) => e.id === id);
   const rooting = currentRooting(odds?.rooting ?? []);
+  // Their bracket's backing — drives "who they should root for" everywhere on
+  // this scouting page (live strip + upcoming card), same as my own pages.
+  const theirBack = backingDepth(draft);
   const pulse =
     odds && draft.spiritTeamId ? spiritPulse(draft.spiritTeamId, odds.teams, results) : null;
 
@@ -79,14 +84,17 @@ export default async function PlayerBracketPage({
           possessive={`${firstName}'s`}
         />
       )}
-      {/* The scouting report: same conditional buckets, their bracket's
-          rooting interest instead of yours. */}
-      {odds && theirOdds && rooting.games.length > 0 && (
+      {/* Live & today's games, scouted from their bracket — so you can see who
+          they're pulling for right now, not just upcoming. */}
+      <LiveStrip back={theirBack} spiritTeamId={draft.spiritTeamId} whose={firstName} />
+
+      {/* The scouting report: who THEIR bracket says to root for in upcoming
+          games. Read off their picks, never pool math. */}
+      {rooting.games.length > 0 && (
         <RootingCard
           games={rooting.games}
           laterGames={rooting.laterGames}
-          meId={id}
-          baselineWin={theirOdds.winProb}
+          back={theirBack}
           spiritTeamId={draft.spiritTeamId}
           whose={firstName}
         />

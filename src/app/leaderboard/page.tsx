@@ -6,7 +6,7 @@ import { backingDepth } from "@/lib/bracketState";
 import { isLocked, kvGet, KV } from "@/lib/db";
 import { computeLeaderboard, formatUsd } from "@/lib/standings";
 import { PAYOUT_SPLIT, computePayouts } from "@/lib/tournament";
-import { currentRooting, getOdds, getRootingLock, MEANINGFUL_ODDS_SWING } from "@/lib/odds";
+import { currentRooting, getOdds } from "@/lib/odds";
 import { getLiveView } from "@/lib/liveScores";
 import { spiritPulse } from "@/lib/analytics";
 import { TEAMS_BY_ID } from "@/lib/teams";
@@ -75,30 +75,11 @@ export default async function LeaderboardPage() {
     laterGames: rooting.laterGames.filter((r) => !isLiveNow(r)),
   };
 
-  // How deeply my bracket backs each team — the live strip's fallback "who to
-  // root for" + what settles finished games. Always available (no odds window).
+  // How deeply my bracket backs each team — the basis for "who to root for"
+  // everywhere (live strip + upcoming card). Always available (no odds window),
+  // and never contradicts my picks. The live strip settles finished games too.
   const myBackDepth = backingDepth(getDraft(meId).draft);
 
-  // Per-game rooting recommendation for ME, keyed by real home-away orientation:
-  // the result that most improves my pool odds + that win prob. Drives the live
-  // strip's "Root for X" headline + the 46% → 49% swing, AND the finished-game
-  // verdict — so all three read the same recommendation. Sourced from the
-  // kickoff-frozen rooting lock (a superset of the live snapshot that also
-  // retains games which already finished and left the watch window). Only
-  // meaningful games (the result actually moves my odds) get an entry.
-  const myArrows: Record<string, { outcome: "home" | "away" | "draw"; win: number }> = {};
-  for (const r of odds ? Object.values(getRootingLock()) : []) {
-    const mine = r.outcomes.filter((o) => o.winProb[meId] !== undefined);
-    if (mine.length === 0) continue;
-    let best = mine[0];
-    let worst = mine[0];
-    for (const o of mine) {
-      if (o.winProb[meId] > best.winProb[meId]) best = o;
-      if (o.winProb[meId] < worst.winProb[meId]) worst = o;
-    }
-    if (best.winProb[meId] - worst.winProb[meId] < MEANINGFUL_ODDS_SWING) continue; // doesn't move me
-    myArrows[`${r.fixture.home}-${r.fixture.away}`] = { outcome: best.outcome, win: best.winProb[meId] };
-  }
   const placeLabels = ["1st", "2nd", "3rd"];
   const placeColors = [
     { soft: "var(--podium-gold-soft)", line: "var(--podium-gold)" },
@@ -194,18 +175,15 @@ export default async function LeaderboardPage() {
       <LiveStrip
         back={myBackDepth}
         spiritTeamId={myStanding?.spiritTeamId ?? null}
-        arrows={myArrows}
-        baselineWin={myOdds?.winProb ?? 0}
       />
 
       {/* Who to root for — UPCOMING games only (live ones are in the strip
-          above, with their score + odds arrow). Conditioned per result. */}
+          above). The team your own bracket carries further; read off `back`. */}
       {odds && myOdds && rootingUpcoming.games.length > 0 && (
         <RootingCard
           games={rootingUpcoming.games}
           laterGames={rootingUpcoming.laterGames}
-          meId={meId}
-          baselineWin={myOdds.winProb}
+          back={myBackDepth}
           spiritTeamId={myStanding?.spiritTeamId ?? null}
         />
       )}
