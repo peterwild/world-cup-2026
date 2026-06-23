@@ -47,8 +47,11 @@ export default async function AdminPage() {
       paid: g.paid,
       sub: pickLabel(g.pickId),
       won: winnerId != null && g.pickId === winnerId,
+      // For sorting only: a pick that hasn't scored (null) sits below 0-goal picks.
+      goals: goalsForPick(scorers, g.pickId) ?? -1,
     }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+    // Goals desc (leaders on top, easy to eyeball a winner), name A→Z to break ties.
+    .sort((a, b) => b.goals - a.goals || a.name.localeCompare(b.name));
 
   return (
     <div className="min-h-dvh max-w-xl mx-auto px-4 pb-12">
