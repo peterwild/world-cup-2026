@@ -16,24 +16,32 @@ function fmtWinDelta(d: number): string {
   return `${pts > 0 ? "+" : "−"}${Math.abs(pts)}%`;
 }
 
-/** True when a delta is worth a line — a real win-prob move, a points change,
+// Banked points only ever rise; a negative pointsDelta is a results correction,
+// not news (a stored snapshot from before the source fix can still carry one).
+// Treat it as no change so the spurious "−N pts" line never renders.
+function gainedPoints(delta: EntryDelta): number {
+  return Math.max(0, delta.pointsDelta);
+}
+
+/** True when a delta is worth a line — a real win-prob move, a points gain,
  *  or at least one named driver. */
 function moved(delta: EntryDelta): boolean {
-  return Math.abs(delta.winProbDelta) >= 0.005 || delta.pointsDelta !== 0 || delta.drivers.length > 0;
+  return Math.abs(delta.winProbDelta) >= 0.005 || gainedPoints(delta) > 0 || delta.drivers.length > 0;
 }
 
 /** The one-line "why your odds moved" explanation. Drivers are ground truth;
  *  when none of the player's own teams resolved, the move came from the field
  *  shifting around them — say that rather than invent a personal reason. */
 function DeltaLine({ delta, possessive }: { delta: EntryDelta; possessive: string }) {
-  const up = delta.winProbDelta > 0 || (delta.winProbDelta === 0 && delta.pointsDelta > 0);
-  const flat = delta.winProbDelta === 0 && delta.pointsDelta === 0 && delta.drivers.length === 0;
+  const pts = gainedPoints(delta);
+  const up = delta.winProbDelta > 0 || (delta.winProbDelta === 0 && pts > 0);
+  const flat = delta.winProbDelta === 0 && pts === 0 && delta.drivers.length === 0;
   const tone = flat ? "var(--muted-foreground)" : up ? "var(--pitch)" : "var(--destructive)";
   const arrow = flat ? "→" : up ? "↑" : "↓";
 
   const stats = [
     Math.abs(delta.winProbDelta) >= 0.005 ? `${fmtWinDelta(delta.winProbDelta)} to win` : null,
-    delta.pointsDelta !== 0 ? `${delta.pointsDelta > 0 ? "+" : "−"}${Math.abs(delta.pointsDelta)} pts` : null,
+    pts > 0 ? `+${pts} pts` : null,
   ].filter(Boolean);
 
   const reason =

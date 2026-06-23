@@ -26,7 +26,10 @@ import { TEAMS_BY_ID } from "./teams";
 export interface EntryDelta {
   /** Signed change in P(win pool) since the previous snapshot. */
   winProbDelta: number;
-  /** Signed change in banked points since the previous snapshot. */
+  /** Gain in banked points since the previous snapshot, floored at 0. Banked
+   *  points are monotonic in reality — a correct pick can't be un-earned — so a
+   *  negative would only ever come from a results CORRECTION (e.g. clearing a
+   *  bad feed-derived reach), which isn't news. We report it as 0. */
   pointsDelta: number;
   /** Human reason fragments, most important first, capped at 2. Empty when
    *  nothing about THIS player's bracket resolved (odds may still have drifted
@@ -146,7 +149,8 @@ export function buildEntryDeltas(input: BuildDeltasInput): Record<string, EntryD
     const draft = input.drafts.get(e.id);
     out[e.id] = {
       winProbDelta: e.winProb - prev.winProb,
-      pointsDelta: e.currentTotal - prev.currentTotal,
+      // Floor at 0 — banked points never fall in reality; a drop is a correction.
+      pointsDelta: Math.max(0, e.currentTotal - prev.currentTotal),
       drivers: draft ? entryDrivers(draft, advanced, completed, input.nextActual) : [],
     };
   }

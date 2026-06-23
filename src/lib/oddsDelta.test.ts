@@ -82,6 +82,25 @@ test("buildEntryDeltas: numeric deltas are exact; drivers attach per bracket", (
   assert.deepEqual(deltas.p1.drivers, [`${name("bra")} into the quarters`]);
 });
 
+test("buildEntryDeltas: a points DROP (results correction) is floored to 0, not shown as negative", () => {
+  // Banked points are monotonic in reality; a fall only happens when bad results
+  // are cleared (the phantom-reach cleanup). That must read as no change, not "−N pts".
+  const prevEntries: EntryOdds[] = [
+    { id: "p1", name: "Pete", winProb: 0.15, top3Prob: 0.3, expectedTotal: 45, currentTotal: 3 },
+  ];
+  const nextEntries: EntryOdds[] = [
+    { id: "p1", name: "Pete", winProb: 0.14, top3Prob: 0.28, expectedTotal: 42, currentTotal: 0 },
+  ];
+  const deltas = buildEntryDeltas({
+    prevEntries,
+    nextEntries,
+    prevActual: resultsWith({ R32: ["bra"] }),
+    nextActual: emptyResults(),
+    drafts: new Map([["p1", emptyDraft()]]),
+  });
+  assert.equal(deltas.p1.pointsDelta, 0);
+});
+
 test("buildEntryDeltas: a new entrant with no prior baseline is skipped", () => {
   const deltas = buildEntryDeltas({
     prevEntries: [],
