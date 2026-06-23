@@ -15,6 +15,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { deriveLive, deriveMatches, deriveResults, type LiveView } from "./footballData";
+import { mergeResults } from "./scoring";
 import { getResults, setResults } from "./repo";
 import { setMatchFeed } from "./matches";
 import { recomputeOdds } from "./odds";
@@ -59,12 +60,15 @@ function syncOddsFromFeed(matches: Parameters<typeof deriveLive>[0]): void {
 
     // Authoritative results: write only when they actually changed — that change
     // IS the event (a match resolved). Cache the last JSON in-process so we don't
-    // re-serialize getResults() against itself every idle poll.
-    const { results } = deriveResults(matches);
-    const json = JSON.stringify(results);
+    // re-serialize getResults() against itself every idle poll. Merge forward-only
+    // onto the stored results (mergeResults) so a flapped/partial feed poll can't
+    // un-complete a group and claw back banked points.
+    const { results: derived } = deriveResults(matches);
+    const merged = mergeResults(getResults(), derived);
+    const json = JSON.stringify(merged);
     if (lastResultsJson === null) lastResultsJson = JSON.stringify(getResults());
     if (json !== lastResultsJson) {
-      setResults(results);
+      setResults(merged);
       lastResultsJson = json;
     }
 

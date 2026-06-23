@@ -28,6 +28,35 @@ export function emptyResults(): Results {
   return { groupResults: {}, roundTeams: {}, finalGoals: null };
 }
 
+/** Forward-only merge of a freshly-derived Results onto the stored one. The
+ *  free-tier feed can return a partial/flapped poll where a completed group's
+ *  matches momentarily don't all read FINISHED — deriveResults is stateless, so
+ *  that snapshot would UN-complete the group and claw back already-banked points
+ *  (seen live: a "−3 pts" swing on a card). Reality is monotonic: a decided
+ *  group never un-decides, a team that reached a round stays reached, the final
+ *  once played is played. So we never regress —
+ *    • groupResults: a group already set is frozen (its top-2 are final); only
+ *      newly-completed groups are added.
+ *    • roundTeams: union per round — a reached team is never dropped.
+ *    • finalGoals: sticky once known.
+ *  Same design as the forward-only status workflow + kickoff-locked rooting.
+ *  Genuine corrections go through the admin route's explicit replace path. */
+export function mergeResults(prev: Results, next: Results): Results {
+  const groupResults = { ...next.groupResults, ...prev.groupResults };
+
+  const roundTeams: Results["roundTeams"] = {};
+  for (const round of KNOCKOUT_ROUNDS) {
+    const union = [...new Set([...(prev.roundTeams[round] ?? []), ...(next.roundTeams[round] ?? [])])];
+    if (union.length) roundTeams[round] = union;
+  }
+
+  return {
+    groupResults,
+    roundTeams,
+    finalGoals: prev.finalGoals ?? next.finalGoals,
+  };
+}
+
 export interface ScoreBreakdown {
   groupPoints: number;
   knockoutPoints: number;

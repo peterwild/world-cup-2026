@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { emptyDraft } from "./bracketState.ts";
-import { scoreBracket, tiebreakDistance, type Results } from "./scoring.ts";
+import { scoreBracket, tiebreakDistance, mergeResults, type Results } from "./scoring.ts";
 
 // A bracket that nails Group A (mex 1st, cze 2nd) and rides France deep.
 function sampleBracket() {
@@ -93,4 +93,53 @@ test("empty results → zero score, no crash", () => {
   const s = scoreBracket(sampleBracket(), { groupResults: {}, roundTeams: {}, finalGoals: null });
   assert.equal(s.total, 0);
   assert.equal(s.correctChampion, false);
+});
+
+test("mergeResults: a flapped feed can't un-complete a group (no points clawback)", () => {
+  const prev: Results = {
+    groupResults: { A: { first: "ARG", second: "MEX" } },
+    roundTeams: { R32: ["ARG", "MEX"] },
+    finalGoals: null,
+  };
+  // The next poll came back partial — group A no longer reads complete, R32 empty.
+  const flapped: Results = { groupResults: {}, roundTeams: {}, finalGoals: null };
+  const merged = mergeResults(prev, flapped);
+  assert.deepEqual(merged.groupResults, { A: { first: "ARG", second: "MEX" } });
+  assert.deepEqual(merged.roundTeams.R32, ["ARG", "MEX"]);
+});
+
+test("mergeResults: forward progress still lands (new group, unioned reaches, final)", () => {
+  const prev: Results = {
+    groupResults: { A: { first: "ARG", second: "MEX" } },
+    roundTeams: { R32: ["ARG"] },
+    finalGoals: null,
+  };
+  const next: Results = {
+    groupResults: { B: { first: "FRA", second: "SEN" } },
+    roundTeams: { R32: ["MEX", "FRA"] },
+    finalGoals: 3,
+  };
+  const merged = mergeResults(prev, next);
+  assert.deepEqual(merged.groupResults, {
+    A: { first: "ARG", second: "MEX" },
+    B: { first: "FRA", second: "SEN" },
+  });
+  assert.deepEqual([...merged.roundTeams.R32!].sort(), ["ARG", "FRA", "MEX"]);
+  assert.equal(merged.finalGoals, 3);
+});
+
+test("mergeResults: a completed group's top-2 is frozen, not overwritten", () => {
+  const prev: Results = {
+    groupResults: { A: { first: "ARG", second: "MEX" } },
+    roundTeams: {},
+    finalGoals: null,
+  };
+  // A later poll disagrees on the order — reality doesn't change a decided group,
+  // so prev wins (a genuine fix uses the admin replace path).
+  const next: Results = {
+    groupResults: { A: { first: "MEX", second: "ARG" } },
+    roundTeams: {},
+    finalGoals: null,
+  };
+  assert.deepEqual(mergeResults(prev, next).groupResults.A, { first: "ARG", second: "MEX" });
 });
