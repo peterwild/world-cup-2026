@@ -8,7 +8,15 @@ import { useState } from "react";
 // revert on failure. Rendered only inside the server-gated /admin page, so this
 // paid data never reaches a non-admin browser.
 
-type Row = { id: string; name: string; paid: boolean };
+type Row = {
+  id: string;
+  name: string;
+  paid: boolean;
+  /** Optional secondary line under the name (e.g. the player's Golden Boot pick). */
+  sub?: string;
+  /** Highlight the row green + 🏆 — their pick matches the resolved winner. */
+  won?: boolean;
+};
 
 function fmtUsd(cents: number): string {
   return (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
@@ -110,7 +118,20 @@ export function AdminPaidList({
       <ul className="divide-y divide-border">
         {rows.map((r) => (
           <li key={r.id} className="flex items-center justify-between gap-3 py-2">
-            <span className="truncate font-medium">{r.name}</span>
+            <span className="min-w-0">
+              <span className="flex items-center gap-1.5">
+                {r.won && <span aria-hidden>🏆</span>}
+                <span className="truncate font-medium">{r.name}</span>
+              </span>
+              {r.sub && (
+                <span
+                  className="block text-xs truncate"
+                  style={{ color: r.won ? "var(--pitch)" : "var(--muted-foreground)" }}
+                >
+                  {r.sub}
+                </span>
+              )}
+            </span>
             <div className="flex shrink-0 items-center gap-2">
               <button
                 type="button"
