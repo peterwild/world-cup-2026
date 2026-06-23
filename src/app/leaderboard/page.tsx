@@ -8,6 +8,7 @@ import { computeLeaderboard, formatUsd } from "@/lib/standings";
 import { PAYOUT_SPLIT, computePayouts } from "@/lib/tournament";
 import { currentRooting, getOdds } from "@/lib/odds";
 import { getLiveView } from "@/lib/liveScores";
+import { isInPlay } from "@/lib/footballData";
 import { spiritPulse } from "@/lib/analytics";
 import { TEAMS_BY_ID } from "@/lib/teams";
 import { Flag } from "@/components/Flag";
@@ -67,9 +68,8 @@ export default async function LeaderboardPage() {
         ? "Update pending"
         : null
     : null;
-  const isLiveFixture = (s: string) => s === "IN_PLAY" || s === "PAUSED";
   const isLiveNow = (r: { fixture: { home: string; away: string; status: string } }) =>
-    isLiveFixture(r.fixture.status) || livePairs.has(`${r.fixture.home}-${r.fixture.away}`);
+    isInPlay(r.fixture.status) || livePairs.has(`${r.fixture.home}-${r.fixture.away}`);
   const rootingUpcoming = {
     games: rooting.games.filter((r) => !isLiveNow(r)),
     laterGames: rooting.laterGames.filter((r) => !isLiveNow(r)),

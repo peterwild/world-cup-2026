@@ -220,6 +220,42 @@ test("deriveLive: in-play games with running score + minute", () => {
   assert.equal(view.live[1].minute, null); // no minute on the feed → null, not 0
 });
 
+// Regression: the free tier sent bare `LIVE` (England–Ghana, 2026-06-23), which
+// matched no in-play/scheduled set, so the match vanished from the strip AND
+// from nextKickoff. LIVE (and knockout EXTRA_TIME / PENALTY_SHOOTOUT) must read
+// as in-progress, normalized to IN_PLAY for the badge.
+test("deriveLive: bare LIVE status renders as a live game", () => {
+  const now = new Date("2026-06-23T21:35:00Z");
+  const matches: FdMatch[] = [
+    {
+      stage: "GROUP_STAGE",
+      group: "GROUP_L",
+      status: "LIVE",
+      utcDate: "2026-06-23T20:00:00Z",
+      id: 537406,
+      homeTeam: { name: "England" },
+      awayTeam: { name: "Ghana" },
+      score: { winner: null, fullTime: { home: 0, away: 0 } },
+    },
+    {
+      stage: "GROUP_STAGE",
+      group: "GROUP_K",
+      status: "TIMED",
+      utcDate: "2026-06-23T23:00:00Z",
+      id: 537407,
+      homeTeam: { name: "Panama" },
+      awayTeam: { name: "Croatia" },
+      score: { winner: null, fullTime: { home: null, away: null } },
+    },
+  ];
+  const { view } = deriveLive(matches, now);
+  assert.equal(view.live.length, 1);
+  assert.equal(view.live[0].home, "eng");
+  assert.equal(view.live[0].away, "gha");
+  assert.equal(view.live[0].status, "IN_PLAY"); // LIVE normalized to IN_PLAY
+  assert.equal(view.nextKickoff, "2026-06-23T23:00:00Z"); // the still-scheduled game
+});
+
 test("deriveLive: finishedToday respects the ET calendar day", () => {
   const now = new Date("2026-06-12T18:00:00Z"); // June 12 ET
   const fin = (home: string, away: string, h: number, a: number, utcDate: string): FdMatch => ({

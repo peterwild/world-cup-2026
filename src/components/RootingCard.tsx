@@ -3,6 +3,7 @@ import { TEAMS_BY_ID } from "@/lib/teams";
 import type { FixtureRooting } from "@/lib/analytics";
 import { type BackDepth, backedSide, backDepthPhrase } from "@/lib/bracketState";
 import { Flag } from "@/components/Flag";
+import { isInPlay } from "@/lib/footballData";
 
 // "Who to root for" — for each upcoming game, the team YOUR bracket carries
 // further. Read straight off your picks (lib/bracketState), never from pool
@@ -11,7 +12,7 @@ import { Flag } from "@/components/Flag";
 // for it; if it's playing AGAINST your bracket pick, we say so.
 
 function kickoffLabel(iso: string, status: string): string {
-  if (status === "IN_PLAY" || status === "PAUSED") return "🔴 live now";
+  if (isInPlay(status)) return "🔴 live now";
   const t = new Intl.DateTimeFormat("en-US", {
     weekday: "short",
     hour: "numeric",

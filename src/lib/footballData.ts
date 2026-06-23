@@ -157,8 +157,19 @@ export function groupsFromMatches(matches: FdMatch[]): {
   return { groups, unmapped: [...unmapped] };
 }
 
+/** football-data status values that mean a match is underway. NOT just IN_PLAY:
+ *  the free tier has been seen to send bare `LIVE` (England–Ghana, 2026-06-23) —
+ *  a value that matched none of the old in-play/scheduled sets, so the game fell
+ *  through every branch and dropped off the strip entirely. Knockouts add
+ *  EXTRA_TIME / PENALTY_SHOOTOUT. One shared set so the strip, scoring, and the
+ *  "live now" badges can't drift apart again. */
+export const IN_PLAY_STATUSES = new Set(["LIVE", "IN_PLAY", "PAUSED", "EXTRA_TIME", "PENALTY_SHOOTOUT"]);
+export const isInPlay = (status: string): boolean => IN_PLAY_STATUSES.has(status);
+
+const SCHEDULED_STATUSES = new Set(["SCHEDULED", "TIMED"]);
+
 /** Statuses that mean "this fixture is still to be decided". */
-const UPCOMING_STATUSES = new Set(["SCHEDULED", "TIMED", "IN_PLAY", "PAUSED"]);
+const UPCOMING_STATUSES = new Set([...SCHEDULED_STATUSES, ...IN_PLAY_STATUSES]);
 
 /** Match-level feed for the box (lib/matches.ts): finished group matches (sim
  *  conditioning) + undecided fixtures with both teams known (rooting views). */
@@ -276,7 +287,7 @@ export function deriveResults(matches: FdMatch[]): { results: Results; unmapped:
   //    (banking knockout points before any group even finished) and made them
   //    flicker as the projection moved. Only a match that's actually underway or
   //    decided proves a team is really there.
-  const PLAYED_OR_LIVE = new Set(["FINISHED", "IN_PLAY", "PAUSED"]);
+  const PLAYED_OR_LIVE = new Set(["FINISHED", ...IN_PLAY_STATUSES]);
   const roundTeams: Results["roundTeams"] = {};
   for (const m of matches) {
     const round = STAGE_TO_ROUND[m.stage];
@@ -379,9 +390,6 @@ function etDay(d: Date): string {
   }).format(d);
 }
 
-const LIVE_STATUSES = new Set(["IN_PLAY", "PAUSED"]);
-const SCHEDULED_STATUSES = new Set(["SCHEDULED", "TIMED"]);
-
 export function deriveLive(matches: FdMatch[], now: Date = new Date()): {
   view: LiveView;
   unmapped: string[];
@@ -404,7 +412,7 @@ export function deriveLive(matches: FdMatch[], now: Date = new Date()): {
     const h = id(m.homeTeam.name);
     const a = id(m.awayTeam.name);
 
-    if (LIVE_STATUSES.has(m.status) && h && a) {
+    if (IN_PLAY_STATUSES.has(m.status) && h && a) {
       live.push({
         id: m.id ?? null,
         home: h,
@@ -412,7 +420,9 @@ export function deriveLive(matches: FdMatch[], now: Date = new Date()): {
         homeGoals: m.score.fullTime.home ?? 0,
         awayGoals: m.score.fullTime.away ?? 0,
         minute: m.minute ?? null,
-        status: m.status as "IN_PLAY" | "PAUSED",
+        // PAUSED = halftime (its own badge); every other underway value (LIVE,
+        // IN_PLAY, EXTRA_TIME, …) renders as a plain live game.
+        status: m.status === "PAUSED" ? "PAUSED" : "IN_PLAY",
         stage: m.stage,
         group: m.group ? (m.group.replace("GROUP_", "") as GroupId) : null,
         utcDate: m.utcDate ?? null,
