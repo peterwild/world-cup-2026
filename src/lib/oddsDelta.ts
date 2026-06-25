@@ -35,6 +35,22 @@ export interface EntryDelta {
    *  nothing about THIS player's bracket resolved (odds may still have drifted
    *  from the field — the UI handles that case). */
   drivers: string[];
+  /** Change in leaderboard position by banked points since the previous
+   *  snapshot. Positive = climbed (e.g. +3 = up three places), negative =
+   *  slipped, 0 = held. Optional: absent on snapshots cached before this
+   *  shipped, and on a first-time entrant with no prior to diff. */
+  rankDelta?: number;
+}
+
+/** Competition rank by banked points (1 = most). Ties share a rank — two tied
+ *  for the most are both 1, the next is 3. Matches lib/analytics.pointsRank. */
+function rankByPoints(entries: EntryOdds[]): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const e of entries) {
+    const above = entries.filter((x) => x.currentTotal > e.currentTotal).length;
+    m.set(e.id, above + 1);
+  }
+  return m;
 }
 
 const teamName = (id: string): string => TEAMS_BY_ID[id]?.name ?? id;
@@ -141,17 +157,23 @@ export function buildEntryDeltas(input: BuildDeltasInput): Record<string, EntryD
   const prevById = new Map(input.prevEntries.map((e) => [e.id, e]));
   const advanced = newlyReached(input.prevActual, input.nextActual);
   const completed = newlyCompleteRounds(input.prevActual, input.nextActual);
+  // Rank movement by banked points, prev → next. Positive = climbed.
+  const prevRank = rankByPoints(input.prevEntries);
+  const nextRank = rankByPoints(input.nextEntries);
 
   const out: Record<string, EntryDelta> = {};
   for (const e of input.nextEntries) {
     const prev = prevById.get(e.id);
     if (!prev) continue; // a new entrant since last snapshot — no baseline to diff
     const draft = input.drafts.get(e.id);
+    const pr = prevRank.get(e.id);
+    const nr = nextRank.get(e.id);
     out[e.id] = {
       winProbDelta: e.winProb - prev.winProb,
       // Floor at 0 — banked points never fall in reality; a drop is a correction.
       pointsDelta: Math.max(0, e.currentTotal - prev.currentTotal),
       drivers: draft ? entryDrivers(draft, advanced, completed, input.nextActual) : [],
+      rankDelta: pr !== undefined && nr !== undefined ? pr - nr : 0,
     };
   }
   return out;

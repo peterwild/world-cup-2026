@@ -260,9 +260,25 @@ export default async function LeaderboardPage() {
           };
           const inner = (
             <>
-              <span className="w-6 text-center font-bold tabular-nums text-muted-foreground">
-                {s.rank}
-              </span>
+              <div className="w-6 shrink-0 flex flex-col items-center leading-none">
+                <span className="font-bold tabular-nums text-muted-foreground">
+                  {s.rank}
+                </span>
+                {rowDelta?.rankDelta ? (
+                  <span
+                    className="text-[10px] font-semibold tabular-nums mt-0.5"
+                    style={{
+                      color: rowDelta.rankDelta > 0 ? "var(--pitch)" : "var(--destructive)",
+                    }}
+                    title={`${rowDelta.rankDelta > 0 ? "Up" : "Down"} ${Math.abs(
+                      rowDelta.rankDelta,
+                    )} since the last update`}
+                  >
+                    {rowDelta.rankDelta > 0 ? "▲" : "▼"}
+                    {Math.abs(rowDelta.rankDelta)}
+                  </span>
+                ) : null}
+              </div>
               <div className="flex-1 min-w-0 space-y-0.5">
                 <div className="font-semibold text-sm flex items-center gap-1.5">
                   <span className="truncate">{s.player.name}</span>

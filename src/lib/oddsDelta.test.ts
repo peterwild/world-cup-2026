@@ -82,6 +82,32 @@ test("buildEntryDeltas: numeric deltas are exact; drivers attach per bracket", (
   assert.deepEqual(deltas.p1.drivers, [`${name("bra")} into the quarters`]);
 });
 
+test("buildEntryDeltas: rankDelta is the climb in points-rank, with ties sharing a rank", () => {
+  // Prev: a=10 (1st), b=4 & c=4 (tied 2nd). Next: c leaps to 12.
+  // Next order: c=12 (1st), a=10 (2nd), b=4 (3rd).
+  // c: 2nd → 1st (+1); a: 1st → 2nd (−1); b: tied-2nd → 3rd (−1).
+  const prevEntries: EntryOdds[] = [
+    { id: "a", name: "A", winProb: 0.4, top3Prob: 0.7, expectedTotal: 30, currentTotal: 10 },
+    { id: "b", name: "B", winProb: 0.2, top3Prob: 0.5, expectedTotal: 20, currentTotal: 4 },
+    { id: "c", name: "C", winProb: 0.2, top3Prob: 0.5, expectedTotal: 20, currentTotal: 4 },
+  ];
+  const nextEntries: EntryOdds[] = [
+    { id: "a", name: "A", winProb: 0.3, top3Prob: 0.6, expectedTotal: 30, currentTotal: 10 },
+    { id: "b", name: "B", winProb: 0.1, top3Prob: 0.4, expectedTotal: 20, currentTotal: 4 },
+    { id: "c", name: "C", winProb: 0.5, top3Prob: 0.8, expectedTotal: 40, currentTotal: 12 },
+  ];
+  const deltas = buildEntryDeltas({
+    prevEntries,
+    nextEntries,
+    prevActual: emptyResults(),
+    nextActual: emptyResults(),
+    drafts: new Map(),
+  });
+  assert.equal(deltas.c.rankDelta, 1); // 2nd → 1st
+  assert.equal(deltas.a.rankDelta, -1); // 1st → 2nd
+  assert.equal(deltas.b.rankDelta, -1); // tied-2nd → 3rd (c overtook)
+});
+
 test("buildEntryDeltas: a points DROP (results correction) is floored to 0, not shown as negative", () => {
   // Banked points are monotonic in reality; a fall only happens when bad results
   // are cleared (the phantom-reach cleanup). That must read as no change, not "−N pts".
