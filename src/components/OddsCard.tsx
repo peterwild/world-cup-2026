@@ -85,7 +85,6 @@ function OddsMoveLine({ delta, possessive }: { delta: EntryDelta; possessive: st
 export function OddsCard({
   entry,
   sims,
-  whose,
   delta,
   rank,
   computedAt,
@@ -94,8 +93,6 @@ export function OddsCard({
 }: {
   entry: EntryOdds;
   sims: number;
-  /** Card title, e.g. "Your odds" / "Dejan's odds". */
-  whose: string;
   /** Why these odds moved since the last recompute (lib/oddsDelta). */
   delta?: EntryDelta;
   /** This entry's standing by banked points (lib/analytics.pointsRank). */
@@ -104,11 +101,14 @@ export function OddsCard({
   computedAt?: string;
   /** A live/just-kicked-off game whose result isn't folded in yet. */
   pending?: string | null;
-  /** Inline possessive for the delta reason — "your" or "Stephanie's". */
+  /** Whose card this is, as a possessive — "your" or "Stephanie's". Drives the
+   *  eyebrows ("Your standing" / "Your odds") and the delta reason. */
   possessive?: string;
 }) {
   const gain = gainedPoints(delta);
   const rankLabel = rank ? `${rank.tied ? "T-" : ""}${ordinal(rank.rank)}` : null;
+  // "your" → "Your", "Stephanie's" → "Stephanie's" (already capitalized).
+  const who = possessive.charAt(0).toUpperCase() + possessive.slice(1);
 
   return (
     <section
@@ -116,7 +116,7 @@ export function OddsCard({
       title={`Odds powered by a ${sims.toLocaleString()}-run Monte Carlo simulation. Updated live as games are played.`}
     >
       <div className="eyebrow mb-2">
-        📊 {whose}
+        📊 {who} standing
         {computedAt && <> · <UpdatedAgo computedAt={computedAt} pending={!!pending} /></>}
       </div>
 
@@ -145,7 +145,9 @@ export function OddsCard({
       </div>
 
       {/* Odds, demoted to context under the points */}
-      <div className="mt-3 pt-3 border-t border-border grid grid-cols-3 gap-2 text-center">
+      <div className="mt-3 pt-3 border-t border-border">
+        <div className="eyebrow mb-2">{who} odds</div>
+        <div className="grid grid-cols-3 gap-2 text-center">
         <div>
           <div className="text-sm font-semibold tabular-nums">{pct(entry.winProb)}</div>
           <div className="eyebrow">win the pool</div>
@@ -159,6 +161,7 @@ export function OddsCard({
             {Math.round(entry.expectedTotal)}
           </div>
           <div className="eyebrow">projected</div>
+        </div>
         </div>
       </div>
 

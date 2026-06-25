@@ -163,7 +163,6 @@ export default async function LeaderboardPage() {
         <OddsCard
           entry={myOdds}
           sims={odds.sims}
-          whose="Your odds"
           delta={odds.deltas?.[meId]}
           rank={pointsRank(odds.entries, meId)}
           computedAt={odds.computedAt}
