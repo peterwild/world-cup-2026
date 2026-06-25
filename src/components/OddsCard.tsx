@@ -1,4 +1,4 @@
-import type { EntryOdds } from "@/lib/analytics";
+import type { EntryOdds, PointsRank } from "@/lib/analytics";
 import type { EntryDelta } from "@/lib/oddsDelta";
 import { UpdatedAgo } from "./OddsFreshness";
 
@@ -16,33 +16,39 @@ function fmtWinDelta(d: number): string {
   return `${pts > 0 ? "+" : "−"}${Math.abs(pts)}%`;
 }
 
+/** "2nd", "3rd", "11th" — plain English ordinal. */
+function ordinal(n: number): string {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return `${n}${s[(v - 20) % 10] || s[v] || s[0]}`;
+}
+
 // Banked points only ever rise; a negative pointsDelta is a results correction,
 // not news (a stored snapshot from before the source fix can still carry one).
 // Treat it as no change so the spurious "−N pts" line never renders.
-function gainedPoints(delta: EntryDelta): number {
-  return Math.max(0, delta.pointsDelta);
+function gainedPoints(delta: EntryDelta | undefined): number {
+  return delta ? Math.max(0, delta.pointsDelta) : 0;
 }
 
-/** True when a delta is worth a line — a real win-prob move, a points gain,
- *  or at least one named driver. */
-function moved(delta: EntryDelta): boolean {
-  return Math.abs(delta.winProbDelta) >= 0.005 || gainedPoints(delta) > 0 || delta.drivers.length > 0;
+/** True when there's a real win-prob move worth a "why" line. Points gains live
+ *  in the hero now, so they no longer drive this line. */
+function oddsMoved(delta: EntryDelta | undefined): boolean {
+  return !!delta && (Math.abs(delta.winProbDelta) >= 0.005 || delta.drivers.length > 0);
 }
 
-/** The one-line "why your odds moved" explanation. Drivers are ground truth;
- *  when none of the player's own teams resolved, the move came from the field
- *  shifting around them — say that rather than invent a personal reason. */
-function DeltaLine({ delta, possessive }: { delta: EntryDelta; possessive: string }) {
-  const pts = gainedPoints(delta);
-  const up = delta.winProbDelta > 0 || (delta.winProbDelta === 0 && pts > 0);
-  const flat = delta.winProbDelta === 0 && pts === 0 && delta.drivers.length === 0;
-  const tone = flat ? "var(--muted-foreground)" : up ? "var(--pitch)" : "var(--destructive)";
-  const arrow = flat ? "→" : up ? "↑" : "↓";
-
-  const stats = [
-    Math.abs(delta.winProbDelta) >= 0.005 ? `${fmtWinDelta(delta.winProbDelta)} to win` : null,
-    pts > 0 ? `+${pts} pts` : null,
-  ].filter(Boolean);
+/** The de-emphasized "why your odds moved" line — win-prob move + reason only.
+ *  The win-prob figure carries its own up/down color; the reason stays muted so
+ *  nothing miscolors a points gain as a loss (banked points are shown, green,
+ *  in the hero above). */
+function OddsMoveLine({ delta, possessive }: { delta: EntryDelta; possessive: string }) {
+  const moved = Math.abs(delta.winProbDelta) >= 0.005;
+  const up = delta.winProbDelta > 0;
+  const arrow = !moved ? "→" : up ? "↑" : "↓";
+  const moveColor = !moved
+    ? "var(--muted-foreground)"
+    : up
+      ? "var(--pitch)"
+      : "var(--destructive)";
 
   const reason =
     delta.drivers.length > 0
@@ -52,25 +58,36 @@ function DeltaLine({ delta, possessive }: { delta: EntryDelta; possessive: strin
         : "the field shifted";
 
   return (
-    <div className="mt-2 text-xs flex items-start gap-1.5" style={{ color: tone }}>
-      <span aria-hidden className="font-bold leading-5">{arrow}</span>
+    <div className="mt-2 text-xs flex items-start gap-1.5" style={{ color: "var(--muted-foreground)" }}>
+      <span aria-hidden className="font-bold leading-5" style={{ color: moveColor }}>
+        {arrow}
+      </span>
       <span className="leading-5">
-        {stats.length > 0 && <span className="font-semibold tabular-nums">{stats.join(" · ")}</span>}
-        {stats.length > 0 && " — "}
+        {moved && (
+          <>
+            <span className="font-semibold tabular-nums" style={{ color: moveColor }}>
+              {fmtWinDelta(delta.winProbDelta)} to win
+            </span>
+            {" — "}
+          </>
+        )}
         {reason}
       </span>
     </div>
   );
 }
 
-// The Monte Carlo odds card — shared by the leaderboard ("Your odds") and the
-// picks pages. Post-lock only (callers gate); numbers come from the cached
-// snapshot the score cron maintains (lib/odds.ts).
+// The standing card — shared by the leaderboard ("Your odds") and the picks
+// pages. Banked points are the hero now that games are scoring; the Monte Carlo
+// odds (win pool / win cash / projected final) sit underneath as context.
+// Post-lock only (callers gate); numbers come from the cached snapshot the
+// score cron maintains (lib/odds.ts).
 export function OddsCard({
   entry,
   sims,
   whose,
   delta,
+  rank,
   computedAt,
   pending,
   possessive = "your",
@@ -81,6 +98,8 @@ export function OddsCard({
   whose: string;
   /** Why these odds moved since the last recompute (lib/oddsDelta). */
   delta?: EntryDelta;
+  /** This entry's standing by banked points (lib/analytics.pointsRank). */
+  rank?: PointsRank | null;
   /** ISO time the snapshot was computed — drives the "updated X ago" line. */
   computedAt?: string;
   /** A live/just-kicked-off game whose result isn't folded in yet. */
@@ -88,6 +107,9 @@ export function OddsCard({
   /** Inline possessive for the delta reason — "your" or "Stephanie's". */
   possessive?: string;
 }) {
+  const gain = gainedPoints(delta);
+  const rankLabel = rank ? `${rank.tied ? "T-" : ""}${ordinal(rank.rank)}` : null;
+
   return (
     <section
       className="mt-3 card-surface rounded-xl p-3 border border-border"
@@ -97,23 +119,50 @@ export function OddsCard({
         📊 {whose}
         {computedAt && <> · <UpdatedAgo computedAt={computedAt} pending={!!pending} /></>}
       </div>
-      <div className="grid grid-cols-3 gap-2 text-center">
+
+      {/* Hero: banked points (+ recent gain) and standing by points */}
+      <div className="flex items-end justify-between gap-3">
+        <div className="flex items-baseline gap-2">
+          <span className="text-3xl font-extrabold tabular-nums leading-none">
+            {entry.currentTotal}
+          </span>
+          <span className="eyebrow">points</span>
+          {gain > 0 && (
+            <span
+              className="text-sm font-semibold tabular-nums"
+              style={{ color: "var(--pitch)" }}
+            >
+              ↑ +{gain}
+            </span>
+          )}
+        </div>
+        {rankLabel && (
+          <div className="text-right leading-none">
+            <span className="text-xl font-bold tabular-nums">{rankLabel}</span>
+            <div className="eyebrow mt-1">of {rank!.field} · by points</div>
+          </div>
+        )}
+      </div>
+
+      {/* Odds, demoted to context under the points */}
+      <div className="mt-3 pt-3 border-t border-border grid grid-cols-3 gap-2 text-center">
         <div>
-          <div className="text-lg font-bold tabular-nums">{pct(entry.winProb)}</div>
+          <div className="text-sm font-semibold tabular-nums">{pct(entry.winProb)}</div>
           <div className="eyebrow">win the pool</div>
         </div>
         <div>
-          <div className="text-lg font-bold tabular-nums">{pct(entry.top3Prob)}</div>
+          <div className="text-sm font-semibold tabular-nums">{pct(entry.top3Prob)}</div>
           <div className="eyebrow">win cash (top 3)</div>
         </div>
         <div title="Projected final score — the mean total this bracket lands on across every simulated tournament.">
-          <div className="text-lg font-bold tabular-nums">
+          <div className="text-sm font-semibold tabular-nums">
             {Math.round(entry.expectedTotal)}
           </div>
-          <div className="eyebrow">expected points</div>
+          <div className="eyebrow">projected</div>
         </div>
       </div>
-      {delta && moved(delta) && <DeltaLine delta={delta} possessive={possessive} />}
+
+      {delta && oddsMoved(delta) && <OddsMoveLine delta={delta} possessive={possessive} />}
     </section>
   );
 }

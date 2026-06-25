@@ -5,7 +5,7 @@ import { isLocked } from "@/lib/db";
 import { hasAnyResults } from "@/lib/pickStatus";
 import { currentRooting, getOdds } from "@/lib/odds";
 import { backingDepth } from "@/lib/bracketState";
-import { spiritPulse } from "@/lib/analytics";
+import { pointsRank, spiritPulse } from "@/lib/analytics";
 import { getMatchFeed } from "@/lib/matches";
 import { allGroupTables } from "@/lib/groupTables";
 import { assembleBracket } from "@/lib/knockoutBracket";
@@ -80,6 +80,7 @@ export default async function PlayerBracketPage({
           sims={odds.sims}
           whose={`${firstName}'s odds`}
           delta={odds.deltas?.[id]}
+          rank={pointsRank(odds.entries, id)}
           computedAt={odds.computedAt}
           possessive={`${firstName}'s`}
         />

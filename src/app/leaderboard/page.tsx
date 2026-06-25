@@ -9,7 +9,7 @@ import { PAYOUT_SPLIT, computePayouts } from "@/lib/tournament";
 import { currentRooting, getOdds } from "@/lib/odds";
 import { getLiveView } from "@/lib/liveScores";
 import { isInPlay } from "@/lib/footballData";
-import { spiritPulse } from "@/lib/analytics";
+import { pointsRank, spiritPulse } from "@/lib/analytics";
 import { TEAMS_BY_ID } from "@/lib/teams";
 import { Flag } from "@/components/Flag";
 import { TopNav } from "@/components/TopNav";
@@ -165,6 +165,7 @@ export default async function LeaderboardPage() {
           sims={odds.sims}
           whose="Your odds"
           delta={odds.deltas?.[meId]}
+          rank={pointsRank(odds.entries, meId)}
           computedAt={odds.computedAt}
           pending={oddsPending}
         />
@@ -330,14 +331,6 @@ export default async function LeaderboardPage() {
                   </div>
                 ) : (
                   !showPayout && <div className="eyebrow">pts</div>
-                )}
-                {rowOdds && rowDelta && Math.abs(rowDelta.winProbDelta) >= 0.005 && (
-                  <div
-                    className="text-[10px] truncate max-w-[9rem] ml-auto"
-                    style={{ color: rowDelta.winProbDelta > 0 ? "var(--pitch)" : "var(--destructive)" }}
-                  >
-                    {rowDelta.drivers.length > 0 ? rowDelta.drivers[0] : "field shifted"}
-                  </div>
                 )}
               </div>
               {/* Whole row is the link post-lock; a chevron is the only cue

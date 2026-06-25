@@ -6,7 +6,7 @@ import { isLocked } from "@/lib/db";
 import { bracketComplete } from "@/lib/bracketState";
 import { hasAnyResults } from "@/lib/pickStatus";
 import { getOdds } from "@/lib/odds";
-import { spiritPulse } from "@/lib/analytics";
+import { pointsRank, spiritPulse } from "@/lib/analytics";
 import { getMatchFeed } from "@/lib/matches";
 import { allGroupTables } from "@/lib/groupTables";
 import { assembleBracket } from "@/lib/knockoutBracket";
@@ -102,6 +102,7 @@ export default async function PicksPage() {
               sims={odds.sims}
               whose="Your odds"
               delta={odds.deltas?.[meId]}
+              rank={pointsRank(odds.entries, meId)}
               computedAt={odds.computedAt}
             />
           )}

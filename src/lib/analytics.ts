@@ -46,6 +46,28 @@ export interface TeamOdds {
   champion: number;
 }
 
+/** Where one entry sits in the field by banked points. */
+export interface PointsRank {
+  /** Competition rank (1 = most points). Ties SHARE a rank: two players tied
+   *  for the most are both rank 1, the next is rank 3. */
+  rank: number;
+  /** Another entry has the exact same banked total — render as "T-2nd". */
+  tied: boolean;
+  /** Total entrants ranked. */
+  field: number;
+}
+
+/** Rank an entry against the field by banked points (`currentTotal`), the same
+ *  total the leaderboard sorts on. Ties share a rank and are flagged. Returns
+ *  null if the id isn't in the field. */
+export function pointsRank(entries: EntryOdds[], id: string): PointsRank | null {
+  const me = entries.find((e) => e.id === id);
+  if (!me) return null;
+  const above = entries.filter((e) => e.currentTotal > me.currentTotal).length;
+  const same = entries.filter((e) => e.currentTotal === me.currentTotal).length;
+  return { rank: above + 1, tied: same > 1, field: entries.length };
+}
+
 // ── Rooting interest ─────────────────────────────────────────────────────────
 
 /** An undecided real fixture worth conditioning on. */
