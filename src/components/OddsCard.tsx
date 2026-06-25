@@ -121,7 +121,7 @@ export function OddsCard({
       </div>
 
       {/* Hero: banked points (+ recent gain) and standing by points */}
-      <div className="flex items-end justify-between gap-3">
+      <div className="flex items-baseline justify-between gap-3">
         <div className="flex items-baseline gap-2">
           <span className="text-3xl font-extrabold tabular-nums leading-none">
             {entry.currentTotal}
@@ -137,9 +137,11 @@ export function OddsCard({
           )}
         </div>
         {rankLabel && (
-          <div className="text-right leading-none">
-            <span className="text-xl font-bold tabular-nums">{rankLabel}</span>
-            <div className="eyebrow mt-1">of {rank!.field} · by points</div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-3xl font-extrabold tabular-nums leading-none">
+              {rankLabel}
+            </span>
+            <span className="eyebrow">of {rank!.field}</span>
           </div>
         )}
       </div>
