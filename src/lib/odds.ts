@@ -244,21 +244,38 @@ export function recomputeOdds(force = false): { snapshot: OddsSnapshot; recomput
   // snapshot. `cached.actual === undefined` means the prior snapshot predates
   // this feature (no diff baseline) — skip drivers that one time rather than
   // dumping the whole tournament-to-date as "what just changed".
+  //
+  // Points and rank only move when RESULTS move. Recomputes also fire on
+  // watch-window/status flips (a game entering the live window) with no result
+  // change — those would diff to all-zeros and wipe the real movement from the
+  // last game. So when the results are unchanged, carry the prior deltas (and
+  // their time window) forward: the "+N pts ▲2" story persists from the result
+  // that caused it until the next result lands, instead of blinking out on the
+  // next live-window tick.
   const hasBaseline = cached != null && cached.actual !== undefined;
-  const deltas = hasBaseline
-    ? buildEntryDeltas({
-        prevEntries: cached.entries,
-        nextEntries: sim.entries,
-        prevActual: cached.actual ?? emptyResults(),
-        nextActual: actual,
-        drafts: new Map(entries.map((e) => [e.id, e.draft])),
-      })
-    : {};
+  const resultsUnchanged =
+    hasBaseline && JSON.stringify(cached.actual) === JSON.stringify(actual);
+  const deltas =
+    !hasBaseline
+      ? {}
+      : resultsUnchanged
+        ? cached.deltas ?? {}
+        : buildEntryDeltas({
+            prevEntries: cached.entries,
+            nextEntries: sim.entries,
+            prevActual: cached.actual ?? emptyResults(),
+            nextActual: actual,
+            drafts: new Map(entries.map((e) => [e.id, e.draft])),
+          });
 
   const snapshot: OddsSnapshot = {
     ...sim,
     computedAt: new Date().toISOString(),
-    prevComputedAt: cached?.computedAt ?? null,
+    // Carry the delta window's start forward when the deltas are carried, so
+    // "what moved" still points at the results change that produced it.
+    prevComputedAt: resultsUnchanged
+      ? cached.prevComputedAt
+      : cached?.computedAt ?? null,
     inputHash,
     deltas,
     actual,
