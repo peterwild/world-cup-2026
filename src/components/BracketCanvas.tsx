@@ -60,7 +60,11 @@ export function BracketCanvas({
           = {possessive} picks to advance · <span style={{ color: "var(--pitch)" }}>✓</span> advanced ·{" "}
           <span style={{ color: "var(--destructive)" }}>✗</span> out · 👑 called the group winner
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 landscape:grid-cols-3 gap-3">
+        {/* Width-driven, not orientation-driven: orientation:landscape forced 3
+            cramped columns on iPad-landscape (~1024px) and narrowed desktop
+            windows, collapsing team names to "M…". auto-fill with a min card
+            width only adds a column when there's real room for full names. */}
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(min(330px,100%),1fr))] gap-3">
           {GROUP_IDS.map((g) => (
             <GroupCard
               key={g}
