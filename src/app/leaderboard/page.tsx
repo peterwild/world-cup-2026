@@ -320,6 +320,14 @@ export default async function LeaderboardPage() {
               </div>
               <div className="text-right">
                 <div className="font-bold tabular-nums">{s.score.total}</div>
+                {rowOdds && (
+                  <div
+                    className="text-xs text-muted-foreground tabular-nums"
+                    title="Projected final score — the mean total this bracket lands on across every simulated tournament. Win odds track this, not today's points."
+                  >
+                    → {Math.round(rowOdds.expectedTotal)} proj
+                  </div>
+                )}
                 {showPayout && (
                   <div className="text-xs" style={{ color: "var(--pitch)" }}>
                     {formatUsd(s.payoutCents)}
