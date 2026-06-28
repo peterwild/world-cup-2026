@@ -325,7 +325,7 @@ export default async function LeaderboardPage() {
                     className="text-xs text-muted-foreground tabular-nums"
                     title="Projected final score — the mean total this bracket lands on across every simulated tournament. Win odds track this, not today's points."
                   >
-                    → {Math.round(rowOdds.expectedTotal)} proj
+                    {Math.round(rowOdds.expectedTotal)} proj
                   </div>
                 )}
                 {showPayout && (
