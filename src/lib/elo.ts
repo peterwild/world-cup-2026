@@ -14,32 +14,33 @@
 
 import { TEAMS } from "./teams";
 
-/** Approximate World-Football-Elo snapshot, pre-tournament 2026. */
+/** World-Football-Elo snapshot. Refreshed mid-tournament after the group
+ *  stage (2026-06-28) so the knockout sims reflect revealed form. */
 export const ELO: Record<string, number> = {
   // Group A
-  cze: 1740, mex: 1875, kor: 1758, rsa: 1517,
+  cze: 1680, mex: 1912, kor: 1723, rsa: 1575,
   // Group B
-  bih: 1595, can: 1788, qat: 1421, sui: 1891,
+  bih: 1622, can: 1748, qat: 1411, sui: 1914,
   // Group C
-  bra: 1991, hai: 1548, mar: 1827, sco: 1782,
+  bra: 2009, hai: 1517, mar: 1877, sco: 1745,
   // Group D
-  aus: 1777, par: 1834, tur: 1911, usa: 1726,
+  aus: 1800, par: 1815, tur: 1852, usa: 1781,
   // Group E
-  cuw: 1434, ecu: 1938, ger: 1932, civ: 1695,
+  cuw: 1438, ecu: 1902, ger: 1916, civ: 1743,
   // Group F
-  jpn: 1906, ned: 1948, swe: 1712, tun: 1628,
+  jpn: 1910, ned: 1980, swe: 1742, tun: 1562,
   // Group G
-  bel: 1894, egy: 1696, irn: 1772, nzl: 1562,
+  bel: 1884, egy: 1742, irn: 1764, nzl: 1534,
   // Group H
-  cpv: 1578, ksa: 1576, esp: 2157, uru: 1892,
+  cpv: 1622, ksa: 1596, esp: 2144, uru: 1841,
   // Group I
-  fra: 2063, irq: 1607, nor: 1914, sen: 1860,
+  fra: 2123, irq: 1561, nor: 1918, sen: 1842,
   // Group J
-  alg: 1772, arg: 2115, aut: 1830, jor: 1680,
+  alg: 1785, arg: 2148, aut: 1836, jor: 1628,
   // Group K
-  col: 1982, cod: 1652, por: 1989, uzb: 1714,
+  col: 2004, cod: 1712, por: 1990, uzb: 1631,
   // Group L
-  cro: 1912, eng: 2024, gha: 1510, pan: 1730,
+  cro: 1905, eng: 2038, gha: 1575, pan: 1658,
 };
 
 export function eloOf(teamId: string): number {
