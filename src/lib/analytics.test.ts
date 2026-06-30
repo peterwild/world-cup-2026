@@ -119,6 +119,17 @@ test("spiritPulse: alive → checkpoint round; out when a decided round excludes
   const partial: Results = { ...emptyResults(), roundTeams: { R32: done.roundTeams.R32 } };
   const mid = spiritPulse(done.roundTeams.R32![0], sim.teams, partial);
   assert.ok(mid.state === "alive" && mid.nextRound === "R16");
+
+  // Just-knocked-out: a team that lost its match reads "out" immediately, even
+  // though its next round hasn't filled (it still lingers in its own round's
+  // set). Without the eliminatedTeams signal this would mislabel them "alive".
+  const beaten = done.roundTeams.R32![0];
+  const beforeRoundFills: Results = {
+    ...emptyResults(),
+    roundTeams: { R32: done.roundTeams.R32 }, // R16 not yet populated
+    eliminatedTeams: [beaten],
+  };
+  assert.equal(spiritPulse(beaten, sim.teams, beforeRoundFills).state, "out");
 });
 
 test("rooting: group fixture outcomes partition the sims, favorite favored", () => {

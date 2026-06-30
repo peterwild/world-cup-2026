@@ -20,12 +20,17 @@ export interface Results {
   /** Teams that actually REACHED each knockout round (incl. R32 and CHAMPION).
    *  CHAMPION holds the single winner. */
   roundTeams: Partial<Record<KnockoutRound, string[]>>;
+  /** Teams knocked OUT for good — the loser of any finished knockout match.
+   *  roundTeams can't surface this until the next round fills (a beaten team
+   *  lingers in its round's set), so this is the immediate elimination signal.
+   *  Optional for back-compat with Results cached before the field existed. */
+  eliminatedTeams?: string[];
   /** Actual combined goals in the final — for the leaderboard tiebreaker. */
   finalGoals: number | null;
 }
 
 export function emptyResults(): Results {
-  return { groupResults: {}, roundTeams: {}, finalGoals: null };
+  return { groupResults: {}, roundTeams: {}, eliminatedTeams: [], finalGoals: null };
 }
 
 /** Forward-only merge of a freshly-derived Results onto the stored one. The
@@ -59,9 +64,15 @@ export function mergeResults(prev: Results, next: Results): Results {
     if (teams.length) roundTeams[round] = teams;
   }
 
+  // Eliminations are monotonic — once out, always out — so union both sides.
+  const eliminatedTeams = [
+    ...new Set([...(prev.eliminatedTeams ?? []), ...(next.eliminatedTeams ?? [])]),
+  ];
+
   return {
     groupResults,
     roundTeams,
+    eliminatedTeams,
     finalGoals: prev.finalGoals ?? next.finalGoals,
   };
 }

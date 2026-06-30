@@ -310,10 +310,11 @@ export function spiritPulse(
   actual: Results,
 ): SpiritPulse {
   if (actual.roundTeams.CHAMPION?.[0] === teamId) return { state: "champion" };
+  // A finished knockout loss is recorded directly, so a beaten team reads "out"
+  // the moment its match ends — no waiting for its next round to fill in.
+  if ((actual.eliminatedTeams ?? []).includes(teamId)) return { state: "out" };
   // Walk the rounds in order; the first one reality hasn't fully decided yet
-  // is the team's next survival checkpoint. (Results granularity: a team that
-  // lost mid-round reads "alive" until its round completes — same coarseness
-  // as simulate.ts, converges as the poller fills Results in.)
+  // is a surviving team's next checkpoint.
   for (const round of KNOCKOUT_ROUNDS) {
     const known = actual.roundTeams[round] ?? [];
     if (known.length >= ROUND_SIZE[round]) {

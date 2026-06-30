@@ -80,6 +80,21 @@ test("knockout reaches + champion from FINAL", () => {
   assert.ok(results.roundTeams.R16?.includes("bra"));
   assert.deepEqual(results.roundTeams.CHAMPION, ["fra"]);
   assert.equal(results.finalGoals, 3);
+  // Each knockout loser is recorded as eliminated (Haiti, Spain, runner-up Brazil).
+  assert.deepEqual(results.eliminatedTeams?.sort(), ["bra", "esp", "hai"]);
+});
+
+test("a live (un-decided) knockout match produces no elimination", () => {
+  const live: FdMatch = {
+    stage: "LAST_16",
+    group: null,
+    status: "IN_PLAY",
+    homeTeam: { name: "Brazil" },
+    awayTeam: { name: "Japan" },
+    score: { winner: null, fullTime: { home: 1, away: 0 } },
+  };
+  const { results } = deriveResults([live]);
+  assert.deepEqual(results.eliminatedTeams, []);
 });
 
 test("scheduled/projected knockout fixtures don't count as reaches", () => {

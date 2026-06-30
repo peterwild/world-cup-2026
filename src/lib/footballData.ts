@@ -301,6 +301,29 @@ export function deriveResults(matches: FdMatch[]): { results: Results; unmapped:
     }
   }
 
+  // ── Eliminations: the LOSER of any FINISHED knockout match is out for good.
+  //    roundTeams can't tell us this until the team's NEXT round fills (the
+  //    beaten team lingers in its own round's set), so a just-knocked-out team
+  //    would read "still alive" on the spirit-pulse meter in the gap between its
+  //    loss and the round completing. The match result is the immediate signal.
+  const eliminatedTeams: string[] = [];
+  const seenOut = new Set<string>();
+  for (const m of matches) {
+    if (!STAGE_TO_ROUND[m.stage]) continue; // knockout stages only
+    if (m.status !== "FINISHED") continue;
+    const loserName =
+      m.score.winner === "HOME_TEAM"
+        ? m.awayTeam.name
+        : m.score.winner === "AWAY_TEAM"
+          ? m.homeTeam.name
+          : null;
+    const lid = loserName ? id(loserName) : null;
+    if (lid && !seenOut.has(lid)) {
+      seenOut.add(lid);
+      eliminatedTeams.push(lid);
+    }
+  }
+
   // ── Champion + final goals from the finished FINAL ──
   let finalGoals: number | null = null;
   const final = matches.find((m) => m.stage === "FINAL" && m.status === "FINISHED");
@@ -316,7 +339,10 @@ export function deriveResults(matches: FdMatch[]): { results: Results; unmapped:
     if (champ) roundTeams.CHAMPION = [champ];
   }
 
-  return { results: { groupResults, roundTeams, finalGoals }, unmapped: [...unmapped] };
+  return {
+    results: { groupResults, roundTeams, eliminatedTeams, finalGoals },
+    unmapped: [...unmapped],
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
