@@ -135,7 +135,10 @@ export function assembleBracket(
     }
   }
 
-  // ── R16 → FINAL: link by the winners of the two child matches ──
+  // ── R16 → FINAL: a match's two teams ARE the winners of its child matches, so
+  // we place it as soon as both children are decided — we don't wait for the feed
+  // to resolve that fixture's team names (which lags behind the child finishes).
+  // The feed fixture is consulted only for the winner, once the match is played.
   const winnerOf = (match: number): string | null => {
     const n = nodes[match];
     if (n.home.advanced) return n.home.teamId;
@@ -143,20 +146,20 @@ export function assembleBracket(
     return null;
   };
   for (const round of ["R16", "QF", "SF", "FINAL"] as const) {
-    for (const fx of fixtures) {
-      if (fx.round !== round) continue;
-      for (const tm of KO_TEMPLATE) {
-        if (tm.round !== round) continue;
-        const [c1, c2] = childMatches(tm.match);
-        const w1 = winnerOf(c1);
-        const w2 = winnerOf(c2);
-        const teams = new Set([fx.home, fx.away]);
-        if (w1 && w2 && teams.has(w1) && teams.has(w2)) {
-          // home keeps the team that came up child-a (c1).
-          place(tm, w1, w2, fx.winner);
-          break;
-        }
-      }
+    for (const tm of KO_TEMPLATE) {
+      if (tm.round !== round) continue;
+      const [c1, c2] = childMatches(tm.match);
+      const w1 = winnerOf(c1);
+      const w2 = winnerOf(c2);
+      if (!w1 || !w2) continue; // matchup not yet determined
+      // If the feed has this fixture (by either orientation), take its winner.
+      const fx = fixtures.find(
+        (f) =>
+          f.round === round &&
+          ((f.home === w1 && f.away === w2) || (f.home === w2 && f.away === w1)),
+      );
+      // home keeps the team that came up child-a (c1).
+      place(tm, w1, w2, fx?.winner ?? null);
     }
   }
 

@@ -67,6 +67,23 @@ test("R16 links by child-match winners; pick overlay marks backed teams", () => 
   assert.equal(b.nodes[90].home.picked, false);
 });
 
+test("R16 matchup shows once both children decided, even before the feed resolves its fixture", () => {
+  // Both R32 games are done, but the feed has NOT yet published the R16 fixture
+  // (football-data lags in resolving knockout team names). The matchup is still
+  // fully determined by the two child winners.
+  const fx: KoFixture[] = [
+    { round: "R32", home: "cze", away: "can", winner: "cze", status: "FINISHED" }, // match 73 → cze
+    { round: "R32", home: "ned", away: "hai", winner: "ned", status: "FINISHED" }, // match 75 → ned
+    // no R16 fixture for match 90
+  ];
+  const b = assembleBracket(fx, results, draft());
+  assert.equal(b.nodes[90].home.teamId, "cze");
+  assert.equal(b.nodes[90].away.teamId, "ned");
+  // Neither side advanced — the R16 game hasn't been played/reported yet.
+  assert.equal(b.nodes[90].home.advanced, false);
+  assert.equal(b.nodes[90].away.advanced, false);
+});
+
 test("champion = winner of the final, with pick overlay", () => {
   // Minimal chain isn't needed — feed a FINAL fixture whose winners we seed via
   // its child SF matches being decided.
