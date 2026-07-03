@@ -1,5 +1,5 @@
 import { GROUP_IDS, TEAMS_BY_ID } from "@/lib/teams";
-import type { DraftBracket } from "@/lib/bracketState";
+import { r32Field, type DraftBracket } from "@/lib/bracketState";
 import type { Results } from "@/lib/scoring";
 import {
   type PickStatus,
@@ -35,6 +35,8 @@ export function BracketView({
   const sf = draft.rounds.SF ?? [];
   const qf = draft.rounds.QF ?? [];
   const r16 = draft.rounds.R16 ?? [];
+  // R32 isn't an explicit round — it's the 24 group qualifiers + 8 chosen thirds.
+  const r32 = r32Field(draft);
   const spirit = draft.spiritTeamId ? TEAMS_BY_ID[draft.spiritTeamId] : null;
 
   const koStatus = (round: KnockoutRound, id: string) =>
@@ -63,6 +65,9 @@ export function BracketView({
       </Section>
       <Section title="Round of 16">
         <TeamList ids={r16} round="R16" results={results} showStatus={showStatus} />
+      </Section>
+      <Section title="Round of 32">
+        <TeamList ids={r32} round="R32" results={results} showStatus={showStatus} />
       </Section>
 
       {/* Spirit + tiebreaker */}
