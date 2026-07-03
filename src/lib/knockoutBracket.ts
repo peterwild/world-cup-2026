@@ -114,7 +114,12 @@ export function assembleBracket(
     };
   }
 
-  const place = (tm: TemplateMatch, homeId: string, awayId: string, winnerId: string | null) => {
+  const place = (
+    tm: TemplateMatch,
+    homeId: string | null,
+    awayId: string | null,
+    winnerId: string | null,
+  ) => {
     nodes[tm.match].home = slot(homeId, tm.round, winnerId);
     nodes[tm.match].away = slot(awayId, tm.round, winnerId);
   };
@@ -135,10 +140,12 @@ export function assembleBracket(
     }
   }
 
-  // ── R16 → FINAL: a match's two teams ARE the winners of its child matches, so
-  // we place it as soon as both children are decided — we don't wait for the feed
-  // to resolve that fixture's team names (which lags behind the child finishes).
-  // The feed fixture is consulted only for the winner, once the match is played.
+  // ── R16 → FINAL: a match's two teams ARE the winners of its child matches. We
+  // place a side as soon as its child is decided — even if the sibling child isn't
+  // yet (a team that won its match has advanced; its opponent can stay TBD). We
+  // never wait for the feed to resolve the fixture's team names (which lags behind
+  // the child finishes). The feed fixture is consulted only for the winner, once
+  // both teams are set and the match is played.
   const winnerOf = (match: number): string | null => {
     const n = nodes[match];
     if (n.home.advanced) return n.home.teamId;
@@ -151,14 +158,17 @@ export function assembleBracket(
       const [c1, c2] = childMatches(tm.match);
       const w1 = winnerOf(c1);
       const w2 = winnerOf(c2);
-      if (!w1 || !w2) continue; // matchup not yet determined
-      // If the feed has this fixture (by either orientation), take its winner.
-      const fx = fixtures.find(
-        (f) =>
-          f.round === round &&
-          ((f.home === w1 && f.away === w2) || (f.home === w2 && f.away === w1)),
-      );
-      // home keeps the team that came up child-a (c1).
+      if (!w1 && !w2) continue; // neither side decided yet
+      // Only once both teams are known can the feed have a fixture (→ its winner).
+      const fx =
+        w1 && w2
+          ? fixtures.find(
+              (f) =>
+                f.round === round &&
+                ((f.home === w1 && f.away === w2) || (f.home === w2 && f.away === w1)),
+            )
+          : undefined;
+      // home keeps the team that came up child-a (c1); an undecided side is TBD.
       place(tm, w1, w2, fx?.winner ?? null);
     }
   }

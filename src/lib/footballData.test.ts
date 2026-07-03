@@ -113,6 +113,23 @@ test("scheduled/projected knockout fixtures don't count as reaches", () => {
   assert.equal(results.roundTeams.R32, undefined);
 });
 
+test("winning a knockout match credits a reach into the next round immediately", () => {
+  // Switzerland beats Algeria in R32; its R16 opponent isn't known yet (no R16
+  // fixture). Switzerland has still reached R16 and must score there now.
+  const decided: FdMatch = {
+    stage: "LAST_32",
+    group: null,
+    status: "FINISHED",
+    homeTeam: { name: "Switzerland" },
+    awayTeam: { name: "Algeria" },
+    score: { winner: "HOME_TEAM", fullTime: { home: 2, away: 0 } },
+  };
+  const { results } = deriveResults([decided]);
+  assert.deepEqual(results.roundTeams.R32?.sort(), ["alg", "sui"]);
+  assert.ok(results.roundTeams.R16?.includes("sui")); // reached R16 by winning R32
+  assert.ok(!results.roundTeams.R16?.includes("alg")); // loser did not
+});
+
 test("a live knockout match does count as a reach", () => {
   const live: FdMatch = {
     stage: "LAST_32",

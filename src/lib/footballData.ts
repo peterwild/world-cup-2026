@@ -301,6 +301,36 @@ export function deriveResults(matches: FdMatch[]): { results: Results; unmapped:
     }
   }
 
+  // ── Reach-ahead: the WINNER of a FINISHED knockout match has reached the NEXT
+  //    round, even before that next fixture is scheduled or its opponent is known
+  //    (a team can win its R32 game days before its R16 opponent's game is played).
+  //    The played/live loop above only credits a reach once the team's NEXT match
+  //    goes live, so without this a locked-in reach wouldn't score on the live
+  //    leaderboard in the gap between rounds. Mirror of the elimination signal
+  //    below; safe because it keys off a decided result, never a projection.
+  const NEXT_KO_ROUND: Partial<Record<KnockoutRound, KnockoutRound>> = {
+    R32: "R16",
+    R16: "QF",
+    QF: "SF",
+    SF: "FINAL",
+  };
+  for (const m of matches) {
+    const round = STAGE_TO_ROUND[m.stage];
+    if (!round || m.status !== "FINISHED") continue;
+    const next = NEXT_KO_ROUND[round];
+    if (!next) continue; // FINAL winner → CHAMPION, handled below
+    const winnerName =
+      m.score.winner === "HOME_TEAM"
+        ? m.homeTeam.name
+        : m.score.winner === "AWAY_TEAM"
+          ? m.awayTeam.name
+          : null;
+    const wid = winnerName ? id(winnerName) : null;
+    if (!wid) continue;
+    const set = (roundTeams[next] ??= []);
+    if (!set.includes(wid)) set.push(wid);
+  }
+
   // ── Eliminations: the LOSER of any FINISHED knockout match is out for good.
   //    roundTeams can't tell us this until the team's NEXT round fills (the
   //    beaten team lingers in its own round's set), so a just-knocked-out team

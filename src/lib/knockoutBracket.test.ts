@@ -84,6 +84,18 @@ test("R16 matchup shows once both children decided, even before the feed resolve
   assert.equal(b.nodes[90].away.advanced, false);
 });
 
+test("R16 shows a decided side with the sibling still TBD", () => {
+  // Only match 73 is decided (cze). Its R16 node (90 = winner73 vs winner75) should
+  // show cze in home with away still TBD — no need to wait on match 75.
+  const fx: KoFixture[] = [
+    { round: "R32", home: "cze", away: "can", winner: "cze", status: "FINISHED" }, // match 73 → cze
+  ];
+  const b = assembleBracket(fx, results, draft());
+  assert.equal(b.nodes[90].home.teamId, "cze");
+  assert.equal(b.nodes[90].away.teamId, null); // sibling R32 (match 75) not decided
+  assert.equal(b.nodes[90].home.advanced, false); // R16 game not played
+});
+
 test("champion = winner of the final, with pick overlay", () => {
   // Minimal chain isn't needed — feed a FINAL fixture whose winners we seed via
   // its child SF matches being decided.
