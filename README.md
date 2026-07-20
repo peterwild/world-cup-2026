@@ -14,8 +14,7 @@ Carlo odds engine) into something else. `terraform/` + `DEPLOY.md` still
 describe a from-scratch Lightsail deploy if you want to stand it back up.
 
 ## Stack
-Next.js 16 / React 19 / Tailwind v4 — inherits the `ptwconsultingllc.com` design
-system (see `fashion-finder` sibling project). Persistence: **SQLite on the box**
+Next.js 16 / React 19 / Tailwind v4. Persistence: **SQLite on the box**
 (`data/cup.db`, gitignored, box-only). AI: **AWS Bedrock** (Claude), streaming,
 with a live-data tool. Scores: **football-data.org** polled by a GitHub Actions
 cron hitting an authed `/api/` endpoint.
