@@ -10,8 +10,9 @@ aws configure         # your AWS access key + secret, region us-east-1
 ```
 
 ## 1. Repo ✅ done
-`github.com/ptw-consulting/world-cup-2026` (private), `main` pushed. Because it's
-private, the box authenticates to GitHub with a read-only **deploy key** — see step 5a.
+`github.com/peterwild/world-cup-2026` (public — open-sourced after the 2026 Cup).
+The box still authenticates to GitHub with a read-only **deploy key** (harmless
+now that the repo is public, but no reason to remove it) — see step 5a.
 
 ## 2. Provision the box (Terraform) 🔵
 ```bash
@@ -46,17 +47,17 @@ printf 'Host github.com\n  IdentityFile ~/.ssh/github\n  IdentitiesOnly yes\n' >
 Add that public key at repo **Settings → Deploy keys → Add** (read-only). From your
 laptop you can do it in one line instead:
 ```bash
-gh repo deploy-key add <(ssh ubuntu@<static_ip> 'cat ~/.ssh/github.pub') -R ptw-consulting/world-cup-2026 -t box-deploy
+gh repo deploy-key add <(ssh ubuntu@<static_ip> 'cat ~/.ssh/github.pub') -R peterwild/world-cup-2026 -t box-deploy
 ```
 
 ## 5b. First deploy on the box 🔵
 ```bash
 # on the box:
-git clone git@github.com:ptw-consulting/world-cup-2026.git
+git clone git@github.com:peterwild/world-cup-2026.git
 cd world-cup-2026
 cp deploy/.env.production.example .env.production
 nano .env.production        # set ADMIN_KEY (long random), confirm passcode
-./scripts/provision-box.sh git@github.com:ptw-consulting/world-cup-2026.git worldcup.ptwconsultingllc.com
+./scripts/provision-box.sh git@github.com:peterwild/world-cup-2026.git worldcup.ptwconsultingllc.com
 ```
 That builds, starts pm2, configures nginx, and runs certbot. Visit
 **https://worldcup.ptwconsultingllc.com**.

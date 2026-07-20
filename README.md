@@ -1,22 +1,17 @@
 # World Cup 2026 — Friend-Group Bracket
 
 A bracket pool for the 2026 FIFA World Cup (48 teams, 12 groups). Mobile-first,
-festive, with an AI "Oracle" research mode and a money leaderboard.
+festive, with an AI advisor over AWS Bedrock, live Monte Carlo win odds, and a
+money leaderboard. Built and run for one friend group's private pool
+(write-up: [petertwild.com](https://petertwild.com)).
 
-## Status: prototype / pre-lock
+## Status: archived, open-sourced post-tournament
 
-**Brackets must lock before kickoff: 2026-06-11 15:00 ET (Mexico v South Africa).**
-
-### ⚠️ Open before lock
-- [x] **48-team group draw verified** 2026-06-07 against the football-data feed
-      (all 12 groups matched); `TEAMS_VERIFIED = true`.
-- [x] **Score poller live** — football-data WC feed confirmed in the free tier;
-      cron runs 3×/hour. Below kept for reference:
-- [ ] **(reference) Wire the score poller** once the tournament feed is live: get a
-      football-data.org key, confirm WC 2026 is in its tier, set repo secrets
-      (`FOOTBALL_DATA_KEY`, `SITE_URL`, `ADMIN_KEY`), and run the poll workflow
-      with `--dry-run` to check team-name mapping (`unmapped` should be empty).
-      See `src/lib/footballData.ts`.
+The 2026 Cup is over and the pool is retired — this repo is kept as a working
+reference to fork or re-provision for a future tournament, or to lift pieces
+(the Bedrock advisor pattern, the reach-the-round scoring model, the Monte
+Carlo odds engine) into something else. `terraform/` + `DEPLOY.md` still
+describe a from-scratch Lightsail deploy if you want to stand it back up.
 
 ## Stack
 Next.js 16 / React 19 / Tailwind v4 — inherits the `ptwconsultingllc.com` design
@@ -29,7 +24,8 @@ cron hitting an authed `/api/` endpoint.
 - Deploy = push to `main` → GitHub Action SSHes the box, `git reset`, `npm ci`,
   build, `pm2 restart`.
 - nginx Basic Auth gates the site; path carve-outs for cron/API endpoints.
-- Subdomain: `worldcup.ptwconsultingllc.com` (TBD).
+- Ran at `worldcup.ptwconsultingllc.com` for the 2026 tournament; the box is
+  being retired now that the pool has closed out.
 
 ## Format & scoring (`src/lib/tournament.ts`)
 No literal bracket tree — players predict **which teams reach each round** (R32 →
@@ -48,12 +44,3 @@ Each player picks one ride-or-die country. If it wins the Cup → a generated
 parsing). No test deps; a tiny resolver hook (`scripts/ts-ext-resolver.mjs`) lets
 it import the app's extensionless TS.
 
-## Build sequence
-1. ✅ Foundation: config, seed data, scoring model, SQLite schema.
-2. ✅ Bracket entry flow (mobile vertical tap-to-advance) + spirit pick + autosave.
-3. ✅ Hard server-side lock + identity (name + group passcode).
-4. ✅ Scoring engine + leaderboard + payouts + spirit badge (`/leaderboard`).
-      Score poller (`scripts/poll-scores.mjs` + workflow) built — needs live-feed
-      verification (see Open before lock).
-5. AI Mode (Bedrock streaming + live-data tool).
-6. Deploy: GitHub repo + Lightsail + nginx/DNS — needs Pete (no SSH from agent).
